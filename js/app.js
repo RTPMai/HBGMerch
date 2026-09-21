@@ -4,6 +4,7 @@ import * as R from './rules.js';
 const app = document.getElementById('app');
 const itemDialog = document.getElementById('item-dialog');
 const settingsDialog = document.getElementById('settings-dialog');
+const importDialog = document.getElementById('import-dialog');
 
 const state = { data: null, year: null };
 
@@ -63,6 +64,7 @@ async function persist(mutate) {
       clearPassword();
       itemDialog.close();
       settingsDialog.close();
+      importDialog.close();
       renderLogin('Signed out. Enter the password again.');
     } else if (err.status === 409 && err.data?.current) {
       state.data = normalize(err.data.current);
@@ -156,6 +158,7 @@ function render() {
       <div class="top-actions">
         <label class="inline">Year <select id="year-select">${options(yearOptions, state.year)}</select></label>
         <button data-action="settings">Settings</button>
+        <button data-action="import">Import email</button>
         <button class="primary" data-action="add">Add item</button>
       </div>
     </header>
@@ -187,15 +190,17 @@ function dateField(item, key, label) {
   return `<label>${label}<input type="date" name="${key}" value="${esc(item[key] || '')}"></label>`;
 }
 
-function openItem(id) {
+function openItem(id, prefill = null) {
   const existing = id ? state.data.items.find((i) => i.id === id) : null;
   if (id && !existing) return;
-  const it = existing || { type: 'general', setSize: 1, slotOwner: 'ours', created: R.todayISO() };
+  const it = prefill || existing || { type: 'general', setSize: 1, slotOwner: 'ours', created: R.todayISO() };
+  const title = existing ? (prefill ? 'Update item from email' : 'Edit item') : (prefill ? 'Add item from email' : 'Add item');
   const v = (k) => esc(it[k] ?? '');
 
   itemDialog.innerHTML = `
     <form id="item-form">
-      <h2>${existing ? 'Edit item' : 'Add item'}</h2>
+      <h2>${title}</h2>
+      ${prefill ? '<p class="hint">Filled in from the email. Check the type and dates, then save.</p>' : ''}
       <div class="grid">
         <label class="full">Item name <input name="name" required value="${v('name')}" placeholder="2026 racing shirt"></label>
         <label>Type <select name="type">${options(R.TYPES, it.type)}</select></label>
@@ -216,6 +221,11 @@ function openItem(id) {
         <label>Vendor <input name="vendor" value="${v('vendor')}"></label>
         <label>Price per piece <input name="price" inputmode="decimal" value="${v('price')}"></label>
         <label class="full">Email subject <input name="emailSubject" value="${v('emailSubject')}" placeholder="So the approval thread is easy to find"></label>
+        <label>CO email <input name="coEmail" type="email" value="${v('coEmail')}"></label>
+        <label>Art link <input name="artUrl" type="url" value="${v('artUrl')}"></label>
+        <label>Sale opens <input name="saleStart" type="date" value="${v('saleStart')}"></label>
+        <label>Sale closes <input name="saleEnd" type="date" value="${v('saleEnd')}"></label>
+        ${it.artUrl ? `<a class="art full" href="${v('artUrl')}" target="_blank" rel="noopener"><img src="${v('artUrl')}" alt="Submitted art for ${v('name')}"></a>` : ''}
 
         <fieldset class="full">
           <legend>Dates, fill in as they happen</legend>
@@ -271,6 +281,42 @@ function openItem(id) {
   });
 
   itemDialog.showModal();
+}
+
+// ---------- import from the LMBO confirmation email ----------
+
+function openImport() {
+  importDialog.innerHTML = `
+    <form id="import-form">
+      <h2>Import approval email</h2>
+      <p class="hint">Copy the whole confirmation email and paste it here. Nothing saves until you review the item.</p>
+      <label class="full">Email text <textarea name="text" rows="12" required></textarea></label>
+      <p class="error" id="import-error" hidden></p>
+      <div class="form-actions">
+        <span></span>
+        <div>
+          <button type="button" data-action="close-dialog">Cancel</button>
+          <button type="submit" class="primary">Read email</button>
+        </div>
+      </div>
+    </form>`;
+
+  importDialog.querySelector('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const parsed = R.parseApprovalEmail(new FormData(e.target).get('text'));
+    if (!parsed) {
+      const err = importDialog.querySelector('#import-error');
+      err.textContent = "Couldn't find a merchandise project name. Paste the full confirmation email.";
+      err.hidden = false;
+      return;
+    }
+    const match = state.data.items.find((i) => i.name.trim().toLowerCase() === parsed.name.toLowerCase());
+    importDialog.close();
+    if (match) openItem(match.id, R.mergeImport(match, parsed));
+    else openItem(null, { setSize: 1, slotOwner: 'ours', created: R.todayISO(), ...parsed });
+  });
+
+  importDialog.showModal();
 }
 
 // ---------- settings ----------
@@ -333,6 +379,7 @@ document.addEventListener('click', (e) => {
   const action = e.target.closest('[data-action]')?.dataset.action;
   if (action === 'add') openItem(null);
   else if (action === 'settings') openSettings();
+  else if (action === 'import') openImport();
   else if (action === 'export') exportData();
   else if (action === 'retry') boot();
   else if (action === 'close-dialog') e.target.closest('dialog')?.close();

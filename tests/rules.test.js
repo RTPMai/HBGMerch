@@ -103,3 +103,50 @@ test('freeze, CO approval, LFL and memorial flags', () => {
   assert.ok(flags.some((f) => f.itemId === 'l' && f.message.includes('LFL')));
   assert.ok(flags.some((f) => f.itemId === 'm' && f.message.includes('TK ID')));
 });
+
+const SAMPLE = `Personal Information
+Real Name: \tRyan Toney
+501st ID Number: \t82518
+Garrison or Outpost: \tHawkbat Garrison
+Merchandise Details
+Name of Merchandise Project: \tHawkbat Basic Coin
+Type of Merchandise: \tChallenge Coin
+Challenge Coin Size: \t1.75"
+Merchandise Description: \t1.75" Coin produced by P&M Apparel Basic Coin Design
+Merchandise Run Type: \tPreorder
+Quantity: \t100
+Price of Merchandise: \t6.15
+Shipping: \tIncluded
+Other Cost(s): \tNA
+Date to Begin Sale: \t18-Sep-2026
+Date to End Sale (Deadline): \t31-Dec-2026
+Image #1: \t
+https://www.501st.com/vault/merch/20260918043321^026-1290-05.png
+"I have already received approval from my Garrison/Outpost CO or Detachment Leader for this project.": \tYes : GCO/OL has Approved
+Garrison/Outpost CO or Detachment Leader Email Address: \tTrooper61472@gmail.com
+This email has been scanned for spam and viruses by Proofpoint Essentials.`;
+
+test('parses the LMBO confirmation email', () => {
+  const p = R.parseApprovalEmail(SAMPLE, '2026-09-21');
+  assert.equal(p.name, 'Hawkbat Basic Coin');
+  assert.equal(p.type, 'basic');
+  assert.equal(p.quantity, '100');
+  assert.equal(p.price, '6.15');
+  assert.equal(p.saleStart, '2026-09-18');
+  assert.equal(p.saleEnd, '2026-12-31');
+  assert.equal(p.submitted, '2026-09-18');
+  assert.equal(p.coApproved, '2026-09-18');
+  assert.equal(p.coEmail, 'Trooper61472@gmail.com');
+  assert.equal(p.artUrl, 'https://www.501st.com/vault/merch/20260918043321^026-1290-05.png');
+  assert.match(p.notes, /Coin size: 1.75"/);
+  assert.doesNotMatch(p.notes, /Other costs/);
+  assert.equal(R.parseApprovalEmail('hello there'), null);
+});
+
+test('import merges without overwriting', () => {
+  const merged = R.mergeImport({ id: 'x', name: 'Hawkbat Basic Coin', type: 'general', vendor: 'P&M', quantity: '50' }, R.parseApprovalEmail(SAMPLE));
+  assert.equal(merged.type, 'general');
+  assert.equal(merged.quantity, '50');
+  assert.equal(merged.vendor, 'P&M');
+  assert.equal(merged.submitted, '2026-09-18');
+});

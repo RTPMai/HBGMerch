@@ -230,3 +230,74 @@ export function attention(items, settings, todayIso) {
   const order = { danger: 0, warn: 1, info: 2 };
   return out.sort((a, b) => order[a.level] - order[b.level]);
 }
+
+// ---------- approval email import ----------
+
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+
+function parseFormDate(s) {
+  const m = String(s || '').trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+  if (!m || !MONTHS[m[2].toLowerCase()]) return '';
+  return `${m[3]}-${String(MONTHS[m[2].toLowerCase()]).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+}
+
+const blank = (v) => !v || /^(na|n\/a|none|-)$/i.test(v.trim());
+
+// Turns the LMBO form confirmation email into item fields. Only reads labels it
+// knows, so extra lines, footers and signatures are ignored.
+export function parseApprovalEmail(text, todayIso = todayISO()) {
+  const fields = {};
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z0-9#?()/ '.-]+?):\s*(.*?)\s*$/);
+    if (m) fields[m[1].trim().toLowerCase()] = m[2];
+  }
+  const get = (label) => (blank(fields[label]) ? '' : fields[label].trim());
+
+  const name = get('name of merchandise project');
+  if (!name) return null;
+
+  const art = String(text).match(/https?:\/\/\S+?\.(?:png|jpe?g|gif|webp|pdf)\b/i);
+  const stamp = art && art[0].match(/\/(\d{4})(\d{2})(\d{2})\d{6}/);
+  const submitted = stamp ? `${stamp[1]}-${stamp[2]}-${stamp[3]}` : todayIso;
+  const coSaysYes = /GCO\/OL has Approved/i.test(text) || /approval from my Garrison[^\n]*:\s*Yes/i.test(text);
+
+  let type = 'general';
+  if (/\bbasic\b/i.test(name)) type = 'basic';
+  else if (/memorial|in memory/i.test(name)) type = 'memorial';
+
+  const details = [
+    ['Product', get('type of merchandise')],
+    ['Coin size', get('challenge coin size')],
+    ['Patch size', get('patch size')],
+    ['Description', get('merchandise description')],
+    ['Run type', get('merchandise run type')],
+    ['Shipping', get('shipping')],
+    ['Other costs', get('other cost(s)')],
+  ].filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
+
+  return {
+    name,
+    type,
+    quantity: get('quantity').replace(/[^\d]/g, ''),
+    price: get('price of merchandise').replace(/[^\d.]/g, ''),
+    saleStart: parseFormDate(get('date to begin sale')),
+    saleEnd: parseFormDate(get('date to end sale (deadline)')),
+    coEmail: get('garrison/outpost co or detachment leader email address'),
+    artUrl: art ? art[0] : '',
+    submitted,
+    coApproved: coSaysYes ? submitted : '',
+    notes: details,
+  };
+}
+
+// Folds imported fields into an existing item without wiping what's already there.
+export function mergeImport(item, imported) {
+  const out = { ...item };
+  for (const [k, v] of Object.entries(imported)) {
+    if (!v) continue;
+    if (k === 'type' && item.type) continue;
+    if (k === 'notes' && item.notes && !item.notes.includes(v)) { out.notes = `${item.notes}\n\n${v}`; continue; }
+    if (!out[k]) out[k] = v;
+  }
+  return out;
+}
