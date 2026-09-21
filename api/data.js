@@ -1,34 +1,60 @@
 // GET returns the whole dataset, PUT replaces it. The dataset is small (a few
-// dozen items a year) so it lives as one JSON value in Upstash Redis. Talks to
-// Upstash over its REST API with fetch, so there are no dependencies.
+// dozen items a year) so it lives as one JSON file in a private GitHub repo.
+// Every save is a commit, so the repo history is the audit trail and the undo.
+// Keep the data in its own repo, not this one, or every save triggers a redeploy.
 
-const KEY = process.env.MERCH_DATA_KEY || 'merch-tracker:data';
+const API = 'https://api.github.com';
 const EMPTY = { version: 0, items: [], settings: {} };
 
-function creds() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) {
-    throw new Error('Storage is not configured. Connect an Upstash Redis database to this project in Vercel.');
-  }
-  return { url, token };
+function config() {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.GITHUB_REPO;
+  if (!token || !repo) throw new Error('Storage is not configured. Set GITHUB_TOKEN and GITHUB_REPO in Vercel.');
+  return {
+    token,
+    repo,
+    branch: process.env.GITHUB_BRANCH || 'main',
+    path: process.env.DATA_PATH || 'merch.json',
+  };
 }
 
-async function redis(command) {
-  const { url, token } = creds();
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(command),
+function contentsUrl({ repo, path }) {
+  return `${API}/repos/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+async function gh(cfg, method, url, body) {
+  return fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'merch-tracker',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || json.error) throw new Error(json.error || `Storage request failed (${res.status})`);
-  return json.result;
 }
 
-async function read() {
-  const raw = await redis(['GET', KEY]);
-  return raw ? JSON.parse(raw) : { ...EMPTY };
+async function read(cfg) {
+  const res = await gh(cfg, 'GET', `${contentsUrl(cfg)}?ref=${encodeURIComponent(cfg.branch)}`);
+  if (res.status === 404) return { data: { ...EMPTY }, sha: null };
+  if (!res.ok) throw new Error(`GitHub read failed (${res.status}). Check GITHUB_REPO and the token's access.`);
+  const file = await res.json();
+  const text = Buffer.from(file.content || '', 'base64').toString('utf8');
+  return { data: text.trim() ? JSON.parse(text) : { ...EMPTY }, sha: file.sha };
+}
+
+async function write(cfg, data, sha) {
+  const res = await gh(cfg, 'PUT', contentsUrl(cfg), {
+    message: `Update merch data (v${data.version})`,
+    content: Buffer.from(JSON.stringify(data, null, 2) + '\n', 'utf8').toString('base64'),
+    branch: cfg.branch,
+    ...(sha ? { sha } : {}),
+  });
+  if (res.status === 409 || res.status === 422) return { conflict: true };
+  if (!res.ok) throw new Error(`GitHub write failed (${res.status}). The token needs Contents read and write.`);
+  return { conflict: false };
 }
 
 export default async function handler(req, res) {
@@ -39,8 +65,11 @@ export default async function handler(req, res) {
   if (req.headers['x-app-password'] !== expected) return res.status(401).json({ error: 'Wrong password.' });
 
   try {
+    const cfg = config();
+
     if (req.method === 'GET') {
-      return res.status(200).json(await read());
+      const { data } = await read(cfg);
+      return res.status(200).json(data);
     }
 
     if (req.method === 'PUT') {
@@ -48,7 +77,7 @@ export default async function handler(req, res) {
       if (!body || !Array.isArray(body.items)) {
         return res.status(400).json({ error: 'Expected { version, items, settings }.' });
       }
-      const current = await read();
+      const { data: current, sha } = await read(cfg);
       if ((body.version || 0) !== (current.version || 0)) {
         return res.status(409).json({ error: 'Data changed since you loaded it.', current });
       }
@@ -58,9 +87,11 @@ export default async function handler(req, res) {
         items: body.items,
         settings: body.settings || {},
       };
-      // Keep the previous copy around as a one-step undo.
-      await redis(['SET', `${KEY}:previous`, JSON.stringify(current)]);
-      await redis(['SET', KEY, JSON.stringify(next)]);
+      const { conflict } = await write(cfg, next, sha);
+      if (conflict) {
+        const latest = await read(cfg);
+        return res.status(409).json({ error: 'Data changed since you loaded it.', current: latest.data });
+      }
       return res.status(200).json(next);
     }
 

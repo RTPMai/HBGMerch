@@ -2,15 +2,22 @@
 
 Tracks Hawkbat Garrison merch submissions against the 501st Operating Protocols: General slots per Legion year, receipts owed to the LMBO, event deadlines, and the election freeze.
 
-Static front end plus one Vercel function. No build step, no npm dependencies.
+Static front end plus one Vercel function. Data lives in a private GitHub repo. No build step, no npm dependencies, nothing to pay for.
 
 ## Setup
 
-1. Push this folder to a new GitHub repo.
-2. In Vercel, import the repo. Framework preset: Other. No build command.
-3. Storage: in the Vercel project, go to Storage, add Upstash Redis from the Marketplace, and connect it to the project. That sets `KV_REST_API_URL` and `KV_REST_API_TOKEN` (the `UPSTASH_REDIS_REST_*` names also work).
-4. Environment variables: add `APP_PASSWORD`. Optional: `MERCH_DATA_KEY` if you want a different Redis key.
-5. Redeploy so the variables take effect.
+1. Push this folder to a new GitHub repo (the app repo).
+2. Create a second, **private** repo for the data, for example `hawkbat-merch-data`. Initialize it with a README so it has a `main` branch. Keep it separate from the app repo, or every save will trigger a Vercel redeploy.
+3. Create a fine-grained personal access token (GitHub, Settings, Developer settings, Fine-grained tokens). Repository access: only the data repo. Permissions: Contents, read and write.
+4. In Vercel, import the app repo. Framework preset: Other. No build command.
+5. Environment variables:
+   - `APP_PASSWORD` the password for the tracker
+   - `GITHUB_TOKEN` the token from step 3
+   - `GITHUB_REPO` for example `yourname/hawkbat-merch-data`
+   - Optional: `GITHUB_BRANCH` (default `main`), `DATA_PATH` (default `merch.json`)
+6. Redeploy so the variables take effect.
+
+The first save creates `merch.json` in the data repo. Every save after that is a commit, so the repo history is your audit trail and undo.
 
 Local dev: `vercel dev` (after `vercel link` and `vercel env pull`).
 
@@ -21,7 +28,7 @@ Tests: `npm test`
 - `js/rules.js` all rule logic (Legion year, freeze, slots, flags). Pure functions, tested.
 - `js/api.js` every fetch goes through here.
 - `js/app.js` UI.
-- `api/data.js` GET and PUT for the dataset, stored as one JSON value in Redis. Saves are versioned so two tabs can't overwrite each other, and the previous copy is kept at `<key>:previous`.
+- `api/data.js` GET and PUT for the dataset, stored as one JSON file in the data repo. Saves are versioned so two tabs can't overwrite each other.
 - `tests/rules.test.js`
 
 ## How the rules are applied
