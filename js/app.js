@@ -82,6 +82,7 @@ async function persist(mutate) {
 function renderLogin(message = '') {
   app.innerHTML = `
     <form class="login" id="login-form">
+      <img class="login-logo" src="assets/hbg.svg" alt="Hawkbat Garrison logo">
       <h1>Merch tracker</h1>
       <p class="sub">Enter the password set in Vercel.</p>
       ${message ? `<p class="error" role="alert">${esc(message)}</p>` : ''}
@@ -151,9 +152,13 @@ function render() {
 
   app.innerHTML = `
     <header class="top">
-      <div>
-        <h1>${esc(settings.unitName)} merch</h1>
-        <p class="sub">Legion year ${R.legionYearLabel(state.year)}: ${R.formatDate(range.start)} to ${R.formatDate(range.end)}</p>
+      <div class="brand">
+        <img src="assets/hbg.svg" alt="" width="84" height="84">
+        <div>
+          <p class="legion">501st Legion</p>
+          <h1>${esc(settings.unitName)}</h1>
+          <p class="sub">Merch tracker. Legion year ${R.legionYearLabel(state.year)}: ${R.formatDate(range.start)} to ${R.formatDate(range.end)}</p>
+        </div>
       </div>
       <div class="top-actions">
         <label class="inline">Year <select id="year-select">${options(yearOptions, state.year)}</select></label>
@@ -162,6 +167,7 @@ function render() {
         <button class="primary" data-action="add">Add item</button>
       </div>
     </header>
+    <div class="stripe" aria-hidden="true"></div>
     ${freeze}
     <section>
       <div class="section-head">
