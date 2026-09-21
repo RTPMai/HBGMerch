@@ -150,3 +150,20 @@ test('import merges without overwriting', () => {
   assert.equal(merged.vendor, 'P&M');
   assert.equal(merged.submitted, '2026-09-18');
 });
+
+test('next action walks the steps and stops at done', () => {
+  assert.equal(R.nextAction({}).field, 'coApproved');
+  assert.equal(R.nextAction({ coApproved: 'x' }).field, 'submitted');
+  assert.equal(R.nextAction({ produced: 'x' }).field, 'receiptSent');
+  assert.equal(R.nextAction({ receiptSent: 'x' }), null);
+  assert.equal(R.nextAction({ outcome: 'denied' }), null);
+});
+
+test('work order puts receipts owed first and done items last', () => {
+  const items = [
+    { id: 'done', receiptSent: '2026-04-01', submitted: '2026-03-01' },
+    { id: 'owed', produced: '2026-05-01', submitted: '2026-04-01' },
+    { id: 'plan', created: '2026-06-01' },
+  ];
+  assert.deepEqual(items.sort(R.workOrder).map((i) => i.id), ['owed', 'plan', 'done']);
+});

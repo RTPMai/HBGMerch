@@ -136,7 +136,16 @@ section { margin-bottom: 36px; }
 /* attention */
 .flags { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .flag {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 10px;
+  border-left: 4px solid var(--ring-light);
+  border-radius: 0 4px 4px 0;
+  background: var(--panel);
+}
+.flag-body {
+  flex: 1;
   display: flex;
   align-items: baseline;
   gap: 14px;
@@ -144,11 +153,10 @@ section { margin-bottom: 36px; }
   text-align: left;
   color: var(--text);
   border: 0;
-  border-left: 4px solid var(--ring-light);
-  border-radius: 0 4px 4px 0;
-  background: var(--panel);
+  border-radius: 0;
+  background: none;
 }
-button.flag:hover { background: var(--panel-2); }
+button.flag-body:hover .flag-name { text-decoration: underline; }
 .flag.danger { border-left-color: var(--red); background: rgba(238, 48, 38, 0.14); }
 .flag.warn { border-left-color: var(--cream); background: rgba(255, 247, 157, 0.08); }
 .flag-name { font-weight: 600; flex: 0 0 180px; }
@@ -171,6 +179,17 @@ td small { display: block; color: var(--muted); }
 .pill.produced { border-color: var(--red); color: #FF8A83; }
 .pill.receipt_sent { border-color: var(--purple); background: var(--purple); color: #fff; }
 .pill.denied, .pill.withdrawn { color: var(--muted); text-decoration: line-through; }
+
+/* one-click advance */
+.step {
+  padding: 5px 11px;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  border-color: var(--purple);
+  color: var(--text);
+}
+.step:hover { background: var(--purple); border-color: var(--purple); }
+.step:disabled { opacity: 0.5; cursor: progress; }
 
 footer { display: flex; gap: 20px; }
 
@@ -219,12 +238,18 @@ legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
   background: var(--panel-2);
   color: var(--text);
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
+.toast-undo { padding: 3px 10px; font-size: 0.88rem; border-color: var(--cream); color: var(--cream); }
 
 @media (max-width: 640px) {
   h1 { font-size: 1.7rem; }
   .brand img { width: 60px; height: 60px; }
   .grid, .dates { grid-template-columns: 1fr; }
-  .flag { flex-direction: column; gap: 2px; }
+  .flag { flex-wrap: wrap; padding-bottom: 10px; }
+  .flag-body { flex-direction: column; gap: 2px; flex-basis: 100%; }
+  .flag .step { margin-left: 14px; }
   .flag-name { flex: none; }
 }

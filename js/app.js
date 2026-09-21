@@ -16,13 +16,42 @@ const options = (map, current) => Object.entries(map)
   .map(([k, label]) => `<option value="${esc(k)}"${String(k) === String(current) ? ' selected' : ''}>${esc(label)}</option>`)
   .join('');
 
-function toast(message) {
+function toast(message, undo = null) {
+  document.querySelectorAll('.toast').forEach((el) => el.remove());
   const t = document.createElement('div');
   t.className = 'toast';
   t.setAttribute('role', 'status');
-  t.textContent = message;
+  const text = document.createElement('span');
+  text.textContent = message;
+  t.append(text);
+  if (undo) {
+    const b = document.createElement('button');
+    b.className = 'toast-undo';
+    b.textContent = 'Undo';
+    b.addEventListener('click', () => { t.remove(); undo(); });
+    t.append(b);
+  }
   document.body.append(t);
-  setTimeout(() => t.remove(), 4500);
+  setTimeout(() => t.remove(), undo ? 8000 : 4500);
+}
+
+// One click moves an item to its next step, dated today.
+async function advance(id, button) {
+  const it = state.data.items.find((i) => i.id === id);
+  const act = it && R.nextAction(it);
+  if (!act) return;
+  if (button) button.disabled = true;
+  const setField = (value) => persist((d) => {
+    const target = d.items.find((i) => i.id === id);
+    if (target) target[act.field] = value;
+  });
+  if (await setField(R.todayISO())) {
+    toast(`${it.name}: ${act.done}.`, async () => {
+      if (await setField('')) toast(`Undid ${act.done} on ${it.name}.`);
+    });
+  } else if (button) {
+    button.disabled = false;
+  }
 }
 
 function normalize(data) {
@@ -106,7 +135,7 @@ function render() {
   const flags = R.attention(items, settings, today);
   const yearItems = items
     .filter((i) => R.legionYearOf(R.slotDate(i)) === state.year)
-    .sort((a, b) => (R.slotDate(b) || '').localeCompare(R.slotDate(a) || ''));
+    .sort(R.workOrder);
 
   const freeze = R.inFreeze(today)
     ? `<p class="banner">Election freeze. The LMBO isn't taking new merch submissions until the new term's officers are ratified, around ${R.formatDate(R.termStart(Number(today.slice(0, 4))))}.</p>`
@@ -124,11 +153,16 @@ function render() {
   }).join('');
 
   const flagList = flags.length
-    ? `<ul class="flags">${flags.map((f) => `<li>
-        ${f.itemId ? `<button class="flag ${f.level}" data-edit="${esc(f.itemId)}">` : `<div class="flag ${f.level}">`}
-          <span class="flag-name">${esc(f.name)}</span><span>${esc(f.message)}</span>
-        ${f.itemId ? '</button>' : '</div>'}
-      </li>`).join('')}</ul>`
+    ? `<ul class="flags">${flags.map((f) => {
+        const item = f.itemId && items.find((i) => i.id === f.itemId);
+        const act = item && R.nextAction(item);
+        return `<li class="flag ${f.level}">
+          ${item ? `<button class="flag-body" data-edit="${esc(f.itemId)}">` : '<div class="flag-body">'}
+            <span class="flag-name">${esc(f.name)}</span><span>${esc(f.message)}</span>
+          ${item ? '</button>' : '</div>'}
+          ${act ? `<button class="step" data-advance="${esc(f.itemId)}">${act.label}</button>` : ''}
+        </li>`;
+      }).join('')}</ul>`
     : '<p class="empty">Nothing open. Receipts are in and no deadlines are close.</p>';
 
   const rows = yearItems.map((it) => {
@@ -140,7 +174,9 @@ function render() {
       <td>${esc(R.TYPES[it.type] || it.type)}${detail}</td>
       <td class="num">${R.slotCost(it) || '<span class="muted">None</span>'}</td>
       <td><span class="pill ${st}">${R.STATUS_LABELS[st]}</span></td>
-      <td>${R.NEXT_STEP[st]}</td>
+      <td>${R.nextAction(it)
+        ? `<button class="step" data-advance="${esc(it.id)}" title="${esc(R.NEXT_STEP[st])}">${R.nextAction(it).label}</button>`
+        : `<span class="muted">${R.NEXT_STEP[st]}</span>`}</td>
     </tr>`;
   }).join('');
 
@@ -379,6 +415,9 @@ function exportData() {
 // ---------- events ----------
 
 document.addEventListener('click', (e) => {
+  const adv = e.target.closest('[data-advance]');
+  if (adv) return advance(adv.dataset.advance, adv);
+
   const edit = e.target.closest('[data-edit]');
   if (edit) return openItem(edit.dataset.edit);
 

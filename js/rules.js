@@ -301,3 +301,25 @@ export function mergeImport(item, imported) {
   }
   return out;
 }
+
+// ---------- one-click advance ----------
+
+const ACTIONS = {
+  draft: { field: 'coApproved', label: 'Mark CO approved', done: 'CO approved' },
+  co_approved: { field: 'submitted', label: 'Mark sent to LMBO', done: 'sent to LMBO' },
+  submitted: { field: 'approved', label: 'Mark approved', done: 'approved' },
+  approved: { field: 'produced', label: 'Mark produced', done: 'produced' },
+  produced: { field: 'receiptSent', label: 'Mark receipt sent', done: 'receipt sent' },
+};
+
+export function nextAction(item) {
+  return ACTIONS[deriveStatus(item)] || null;
+}
+
+// Receipts owed first, finished and dead items last.
+const RANK = { produced: 0, draft: 1, co_approved: 1, submitted: 1, approved: 1, receipt_sent: 2, denied: 3, withdrawn: 3 };
+
+export function workOrder(a, b) {
+  const r = RANK[deriveStatus(a)] - RANK[deriveStatus(b)];
+  return r || (slotDate(b) || '').localeCompare(slotDate(a) || '');
+}
