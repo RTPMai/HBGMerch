@@ -326,7 +326,7 @@ export function workOrder(a, b) {
 
 // ---------- public member view ----------
 
-const PUBLIC_FIELDS = ['id', 'name', 'type', 'price', 'options', 'quantity', 'artUrl', 'chipplyUrl',
+const PUBLIC_FIELDS = ['id', 'name', 'type', 'price', 'variantPrice', 'quantity', 'artUrl', 'chipplyUrl',
   'saleStart', 'saleEnd', 'eventName', 'eventDate', 'variant',
   'coApproved', 'submitted', 'approved', 'produced', 'receiptSent', 'outcome'];
 
@@ -337,7 +337,7 @@ export function publicItem(item) {
   const st = deriveStatus(item);
   if (st === 'denied' || st === 'withdrawn') return null;
   const out = {};
-  for (const k of PUBLIC_FIELDS) if (item[k] && !(Array.isArray(item[k]) && !item[k].length)) out[k] = item[k];
+  for (const k of PUBLIC_FIELDS) if (item[k]) out[k] = item[k];
   return out;
 }
 
@@ -366,14 +366,20 @@ export function publicOrder(a, b) {
   return r || (slotDate(b) || '').localeCompare(slotDate(a) || '');
 }
 
-// Option rows are [{ label, price }]. An item with none just uses its own price.
+// Prices for the card. If the variant costs something different, both show.
 export function priceLines(item) {
   const money = (v) => {
     const n = Number(v);
-    return Number.isFinite(n) && v !== '' ? `$${n.toFixed(2)}` : '';
+    return v === '' || v === undefined || !Number.isFinite(n) ? '' : `$${n.toFixed(2)}`;
   };
-  const rows = (item.options || []).filter((o) => o && (o.label || o.price));
-  if (rows.length) return rows.map((o) => ({ label: o.label || 'Option', price: money(o.price) }));
-  const single = money(item.price);
-  return single ? [{ label: '', price: `${single} each` }] : [];
+  const base = money(item.price);
+  const variant = money(item.variantPrice);
+  if (base && variant) {
+    return [
+      { label: 'Standard', price: base },
+      { label: item.variant || 'Variant', price: variant },
+    ];
+  }
+  if (variant) return [{ label: item.variant || 'Variant', price: `${variant} each` }];
+  return base ? [{ label: '', price: `${base} each` }] : [];
 }
