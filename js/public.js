@@ -19,6 +19,7 @@ function header(unitName) {
           <p class="sub">What's running, what's coming, and where each item stands.</p>
         </div>
       </div>
+      <a class="officer" href="/admin">Officer login</a>
     </header>
     <div class="stripe" aria-hidden="true"></div>`;
 }
