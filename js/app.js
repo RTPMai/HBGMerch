@@ -266,8 +266,14 @@ function openItem(id, prefill = null) {
         <label class="full">Email subject <input name="emailSubject" value="${v('emailSubject')}" placeholder="So the approval thread is easy to find"></label>
         <label>CO email <input name="coEmail" type="email" value="${v('coEmail')}"></label>
         <label>Art link <input name="artUrl" type="url" value="${v('artUrl')}" placeholder="Pasted from the email, or uploaded below"></label>
-        <label>Upload art <input type="file" id="art-file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf">
-          <span class="hint" id="art-status">PNG, JPG, WEBP, GIF, SVG or PDF. Large images are shrunk first.</span></label>
+        <div class="full">
+          <span class="field-label">Upload art</span>
+          <div class="drop" id="art-drop">
+            <p class="drop-line">Drag art here, or <button type="button" class="link" id="art-pick">choose a file</button></p>
+            <p class="hint" id="art-status">PNG, JPG, WEBP, GIF, SVG or PDF. Large images are shrunk first.</p>
+          </div>
+          <input type="file" id="art-file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf">
+        </div>
         <label class="full">Chipply store link <input name="chipplyUrl" type="url" value="${v('chipplyUrl')}" placeholder="Shown to members when ordering is open"></label>
         <label class="check full"><input type="checkbox" name="isPublic" ${it.isPublic === false ? '' : 'checked'}> Show this item on the member page</label>
         <label>Sale opens <input name="saleStart" type="date" value="${v('saleStart')}"></label>
@@ -364,13 +370,16 @@ const toBase64 = (file) => new Promise((resolve, reject) => {
 
 function wireUpload(form) {
   const input = form.querySelector('#art-file');
+  const drop = form.querySelector('#art-drop');
   const status = form.querySelector('#art-status');
-  if (!input) return;
-  input.addEventListener('change', async () => {
-    const file = input.files[0];
-    if (!file) return;
+  if (!input || !drop) return;
+
+  async function send(file) {
+    if (!file || input.disabled) return;
     input.disabled = true;
-    status.textContent = 'Uploading…';
+    drop.classList.remove('over');
+    drop.classList.add('busy');
+    status.textContent = `Uploading ${file.name}…`;
     try {
       const ready = await shrink(file);
       const { url } = await uploadArt({ name: ready.name, type: ready.type, data: await toBase64(ready) });
@@ -378,12 +387,32 @@ function wireUpload(form) {
       const preview = form.querySelector('.art img');
       if (preview) preview.src = url;
       status.textContent = 'Uploaded. Save the item to keep it.';
+      drop.classList.add('done');
     } catch (err) {
       status.textContent = err.message;
-      input.value = '';
+      drop.classList.remove('done');
     } finally {
+      input.value = '';
       input.disabled = false;
+      drop.classList.remove('busy');
     }
+  }
+
+  form.querySelector('#art-pick').addEventListener('click', () => input.click());
+  input.addEventListener('change', () => send(input.files[0]));
+
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', (e) => { if (!drop.contains(e.relatedTarget)) drop.classList.remove('over'); });
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    send(e.dataTransfer.files[0]);
+  });
+
+  // Paste a screenshot straight in while the dialog is open.
+  form.addEventListener('paste', (e) => {
+    const file = [...(e.clipboardData?.files || [])][0];
+    if (file) { e.preventDefault(); send(file); }
   });
 }
 
