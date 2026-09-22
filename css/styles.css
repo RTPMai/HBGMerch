@@ -295,18 +295,27 @@ legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
 .card-body h2 { font-size: 1.1rem; }
 .card-body .sub { margin: 0; font-size: 0.92rem; }
 .meta { margin: 2px 0 0; font-size: 0.88rem; color: var(--muted); }
-.prices { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.9rem; }
-.prices li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid #232326; }
-.prices li:last-child { border-bottom: 0; }
-.prices .price { color: var(--cream); white-space: nowrap; }
+.prices {
+  list-style: none;
+  margin: auto 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid #232326;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.92rem;
+}
+.prices li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; }
+.price-label { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.prices .price { color: var(--cream); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.empty-price { color: var(--muted); font-size: 0.88rem; }
 
-.variant { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 0; font-size: 0.9rem; }
 .variant-tag {
   font-family: var(--wide);
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 3px 7px;
+  padding: 3px 6px;
   border: 1px solid var(--purple);
   border-radius: 3px;
   color: #C9A9DB;
@@ -328,8 +337,7 @@ legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
 .status.done { border-color: var(--ring); color: var(--ring-light); }
 
 .order {
-  margin-top: auto;
-  margin-bottom: 0;
+  margin-top: 12px;
   align-self: flex-start;
   padding: 9px 16px;
   border-radius: 4px;
@@ -364,3 +372,4 @@ legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
 .public-footer .sub { font-size: 0.85rem; }
 
 a.link { color: var(--muted); font-size: 0.9rem; }
+.store-link { margin-top: 12px; align-self: flex-start; color: var(--muted); font-size: 0.9rem; }
