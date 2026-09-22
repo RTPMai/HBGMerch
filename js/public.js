@@ -27,11 +27,15 @@ function header(unitName) {
 function card(item, today) {
   const status = R.publicStatus(item, today);
   const open = status.label === 'Ordering open';
-  const money = Number(item.price);
+  const prices = R.priceLines(item);
   const bits = [
-    item.price ? `$${Number.isFinite(money) ? money.toFixed(2) : esc(item.price)} each` : '',
     item.type === 'event' && item.eventDate ? `For ${esc(item.eventName || 'event')}, ${R.formatDate(item.eventDate)}` : '',
   ].filter(Boolean);
+  const priceBlock = prices.length === 1 && !prices[0].label
+    ? `<p class="meta">${esc(prices[0].price)}</p>`
+    : prices.length
+      ? `<ul class="prices">${prices.map((p) => `<li><span>${esc(p.label)}</span><span class="price">${esc(p.price)}</span></li>`).join('')}</ul>`
+      : '';
 
   return `
     <li class="card">
@@ -43,6 +47,7 @@ function card(item, today) {
         <h2>${esc(item.name)}</h2>
         <p class="sub">${esc(status.note)}</p>
         ${item.variant ? `<p class="variant"><span class="variant-tag">Variant</span> ${esc(item.variant)}</p>` : ''}
+        ${priceBlock}
         ${bits.length ? `<p class="meta">${bits.join(' &middot; ')}</p>` : ''}
         ${item.chipplyUrl && open
           ? `<a class="order" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Order on Chipply</a>`
