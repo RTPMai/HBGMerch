@@ -216,6 +216,10 @@ dialog h2 + .hint { margin: 6px 0 0; font-size: 0.9rem; color: var(--muted); }
 
 fieldset { margin: 0; padding: 10px 12px 12px; border: 1px solid var(--ring); border-radius: 4px; }
 legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
+.option-row { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+.option-row .remove-option { font-size: 0.85rem; }
+#option-rows:empty + #add-option { margin-top: 2px; }
+
 .dates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
 .form-actions { display: flex; justify-content: space-between; gap: 8px; }
@@ -295,6 +299,11 @@ legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
 .card-body h2 { font-size: 1.1rem; }
 .card-body .sub { margin: 0; font-size: 0.92rem; }
 .meta { margin: 2px 0 0; font-size: 0.88rem; color: var(--muted); }
+.prices { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.9rem; }
+.prices li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid #232326; }
+.prices li:last-child { border-bottom: 0; }
+.prices .price { color: var(--cream); white-space: nowrap; }
+
 .variant { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 0; font-size: 0.9rem; }
 .variant-tag {
   font-family: var(--wide);
