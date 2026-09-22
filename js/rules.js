@@ -326,7 +326,7 @@ export function workOrder(a, b) {
 
 // ---------- public member view ----------
 
-const PUBLIC_FIELDS = ['id', 'name', 'type', 'price', 'quantity', 'artUrl', 'chipplyUrl',
+const PUBLIC_FIELDS = ['id', 'name', 'type', 'price', 'options', 'quantity', 'artUrl', 'chipplyUrl',
   'saleStart', 'saleEnd', 'eventName', 'eventDate', 'variant',
   'coApproved', 'submitted', 'approved', 'produced', 'receiptSent', 'outcome'];
 
@@ -337,7 +337,7 @@ export function publicItem(item) {
   const st = deriveStatus(item);
   if (st === 'denied' || st === 'withdrawn') return null;
   const out = {};
-  for (const k of PUBLIC_FIELDS) if (item[k]) out[k] = item[k];
+  for (const k of PUBLIC_FIELDS) if (item[k] && !(Array.isArray(item[k]) && !item[k].length)) out[k] = item[k];
   return out;
 }
 
@@ -364,4 +364,16 @@ export function publicStatus(item, todayIso = todayISO()) {
 export function publicOrder(a, b) {
   const r = publicStatus(a).rank - publicStatus(b).rank;
   return r || (slotDate(b) || '').localeCompare(slotDate(a) || '');
+}
+
+// Option rows are [{ label, price }]. An item with none just uses its own price.
+export function priceLines(item) {
+  const money = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && v !== '' ? `$${n.toFixed(2)}` : '';
+  };
+  const rows = (item.options || []).filter((o) => o && (o.label || o.price));
+  if (rows.length) return rows.map((o) => ({ label: o.label || 'Option', price: money(o.price) }));
+  const single = money(item.price);
+  return single ? [{ label: '', price: `${single} each` }] : [];
 }
