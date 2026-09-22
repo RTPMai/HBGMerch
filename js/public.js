@@ -27,19 +27,22 @@ function header(unitName) {
 function card(item, today) {
   const status = R.publicStatus(item, today);
   const open = status.label === 'Ordering open';
+  const money = Number(item.price);
   const bits = [
-    item.price ? `$${esc(item.price)} each` : '',
+    item.price ? `$${Number.isFinite(money) ? money.toFixed(2) : esc(item.price)} each` : '',
     item.type === 'event' && item.eventDate ? `For ${esc(item.eventName || 'event')}, ${R.formatDate(item.eventDate)}` : '',
-    item.variant ? esc(item.variant) : '',
   ].filter(Boolean);
 
   return `
     <li class="card">
-      ${item.artUrl ? `<div class="card-art"><img src="${esc(item.artUrl)}" alt="Art for ${esc(item.name)}" loading="lazy"></div>` : ''}
+      <div class="card-art">${item.artUrl
+        ? `<img src="${esc(item.artUrl)}" alt="Art for ${esc(item.name)}" loading="lazy">`
+        : '<img class="placeholder" src="assets/hbg.svg" alt="" aria-hidden="true">'}</div>
       <div class="card-body">
         <span class="status ${status.tone}">${esc(status.label)}</span>
         <h2>${esc(item.name)}</h2>
         <p class="sub">${esc(status.note)}</p>
+        ${item.variant ? `<p class="variant"><span class="variant-tag">Variant</span> ${esc(item.variant)}</p>` : ''}
         ${bits.length ? `<p class="meta">${bits.join(' &middot; ')}</p>` : ''}
         ${item.chipplyUrl && open
           ? `<a class="order" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Order on Chipply</a>`
