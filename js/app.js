@@ -265,7 +265,7 @@ function openItem(id, prefill = null) {
         <label>Price per piece <input name="price" inputmode="decimal" value="${v('price')}"></label>
         <label class="full">Email subject <input name="emailSubject" value="${v('emailSubject')}" placeholder="So the approval thread is easy to find"></label>
         <label>CO email <input name="coEmail" type="email" value="${v('coEmail')}"></label>
-        <label>Art link <input name="artUrl" type="url" value="${v('artUrl')}" placeholder="Pasted from the email, or uploaded below"></label>
+        <label>Art link <input name="artUrl" type="text" value="${v('artUrl')}" placeholder="Pasted from the email, or uploaded below"></label>
         <div class="full">
           <span class="field-label">Upload art</span>
           <div class="drop" id="art-drop">
