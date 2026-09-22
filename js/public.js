@@ -28,14 +28,9 @@ function card(item, today) {
   const status = R.publicStatus(item, today);
   const open = status.label === 'Ordering open';
   const prices = R.priceLines(item);
-  const bits = [
-    item.type === 'event' && item.eventDate ? `For ${esc(item.eventName || 'event')}, ${R.formatDate(item.eventDate)}` : '',
-  ].filter(Boolean);
-  const priceBlock = prices.length === 1 && !prices[0].label
-    ? `<p class="meta">${esc(prices[0].price)}</p>`
-    : prices.length
-      ? `<ul class="prices">${prices.map((p) => `<li><span>${esc(p.label)}</span><span class="price">${esc(p.price)}</span></li>`).join('')}</ul>`
-      : '';
+  const event = item.type === 'event' && item.eventDate
+    ? `For ${esc(item.eventName || 'event')}, ${R.formatDate(item.eventDate)}`
+    : '';
 
   return `
     <li class="card">
@@ -46,13 +41,15 @@ function card(item, today) {
         <span class="status ${status.tone}">${esc(status.label)}</span>
         <h2>${esc(item.name)}</h2>
         <p class="sub">${esc(status.note)}</p>
-        ${item.variant ? `<p class="variant"><span class="variant-tag">Variant</span> ${esc(item.variant)}</p>` : ''}
-        ${priceBlock}
-        ${bits.length ? `<p class="meta">${bits.join(' &middot; ')}</p>` : ''}
+        ${event ? `<p class="meta">${event}</p>` : ''}
+        ${prices.length ? `<ul class="prices">${prices.map((p) => `<li>
+          <span class="price-label">${esc(p.label)}${p.variant ? '<span class="variant-tag">Variant</span>' : ''}</span>
+          <span class="price">${esc(p.price)}</span>
+        </li>`).join('')}</ul>` : '<p class="prices empty-price">Pricing to come</p>'}
         ${item.chipplyUrl && open
           ? `<a class="order" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Order on Chipply</a>`
           : item.chipplyUrl && status.rank === 2
-            ? `<a class="link" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Store link</a>`
+            ? `<a class="store-link" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Store link</a>`
             : ''}
       </div>
     </li>`;
