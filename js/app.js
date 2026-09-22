@@ -1,4 +1,4 @@
-import { loadData, saveData, getPassword, setPassword, clearPassword } from './api.js';
+import { loadData, saveData, uploadArt, getPassword, setPassword, clearPassword } from './api.js';
 import * as R from './rules.js';
 
 const app = document.getElementById('app');
@@ -265,7 +265,9 @@ function openItem(id, prefill = null) {
         <label>Price per piece <input name="price" inputmode="decimal" value="${v('price')}"></label>
         <label class="full">Email subject <input name="emailSubject" value="${v('emailSubject')}" placeholder="So the approval thread is easy to find"></label>
         <label>CO email <input name="coEmail" type="email" value="${v('coEmail')}"></label>
-        <label>Art link <input name="artUrl" type="url" value="${v('artUrl')}"></label>
+        <label>Art link <input name="artUrl" type="url" value="${v('artUrl')}" placeholder="Pasted from the email, or uploaded below"></label>
+        <label>Upload art <input type="file" id="art-file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf">
+          <span class="hint" id="art-status">PNG, JPG, WEBP, GIF, SVG or PDF. Large images are shrunk first.</span></label>
         <label class="full">Chipply store link <input name="chipplyUrl" type="url" value="${v('chipplyUrl')}" placeholder="Shown to members when ordering is open"></label>
         <label class="check full"><input type="checkbox" name="isPublic" ${it.isPublic === false ? '' : 'checked'}> Show this item on the member page</label>
         <label>Sale opens <input name="saleStart" type="date" value="${v('saleStart')}"></label>
@@ -295,6 +297,7 @@ function openItem(id, prefill = null) {
     </form>`;
 
   const form = itemDialog.querySelector('form');
+  wireUpload(form);
   const typeSelect = form.elements.namedItem('type');
   const sync = () => form.querySelectorAll('[data-for]').forEach((el) => { el.hidden = el.dataset.for !== typeSelect.value; });
   typeSelect.addEventListener('change', sync);
@@ -326,6 +329,62 @@ function openItem(id, prefill = null) {
   });
 
   itemDialog.showModal();
+}
+
+// ---------- art upload ----------
+
+// Shrinks anything big so the data repo doesn't fill up with 12 MB photos.
+function shrink(file) {
+  const skip = file.type === 'image/svg+xml' || file.type === 'application/pdf' || file.type === 'image/gif';
+  if (skip || file.size < 900 * 1024) return Promise.resolve(file);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1400 / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(img.src);
+        resolve(blob && blob.size < file.size ? new File([blob], file.name, { type: 'image/jpeg' }) : file);
+      }, 'image/jpeg', 0.86);
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+const toBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result).split(',')[1]);
+  reader.onerror = () => reject(new Error("Couldn't read that file."));
+  reader.readAsDataURL(file);
+});
+
+function wireUpload(form) {
+  const input = form.querySelector('#art-file');
+  const status = form.querySelector('#art-status');
+  if (!input) return;
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+    input.disabled = true;
+    status.textContent = 'Uploading…';
+    try {
+      const ready = await shrink(file);
+      const { url } = await uploadArt({ name: ready.name, type: ready.type, data: await toBase64(ready) });
+      form.elements.namedItem('artUrl').value = url;
+      const preview = form.querySelector('.art img');
+      if (preview) preview.src = url;
+      status.textContent = 'Uploaded. Save the item to keep it.';
+    } catch (err) {
+      status.textContent = err.message;
+      input.value = '';
+    } finally {
+      input.disabled = false;
+    }
+  });
 }
 
 // ---------- import from the LMBO confirmation email ----------

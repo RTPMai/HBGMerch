@@ -32,3 +32,18 @@ async function call(method, body) {
 
 export const loadData = () => call('GET');
 export const saveData = (data) => call('PUT', data);
+
+export async function uploadArt({ name, type, data }) {
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-app-password': getPassword() || '' },
+    body: JSON.stringify({ name, type, data }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.error || `Upload failed (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
+  return json;
+}

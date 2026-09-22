@@ -55,3 +55,30 @@ export async function write(cfg, data, sha) {
   return { conflict: false };
 }
 
+
+// ---------- binary files (art) ----------
+
+export async function readFile(cfg, filePath) {
+  const url = `${contentsUrl({ repo: cfg.repo, path: filePath })}?ref=${encodeURIComponent(cfg.branch)}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      Accept: 'application/vnd.github.raw',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'merch-tracker',
+    },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub read failed (${res.status}).`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+export async function writeFile(cfg, filePath, base64, message) {
+  const res = await gh(cfg, 'PUT', contentsUrl({ repo: cfg.repo, path: filePath }), {
+    message,
+    content: base64,
+    branch: cfg.branch,
+  });
+  if (!res.ok) throw new Error(`GitHub upload failed (${res.status}). The token needs Contents read and write.`);
+  return res.json();
+}

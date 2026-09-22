@@ -17,7 +17,7 @@ Static front end plus one Vercel function. Data lives in a private GitHub repo. 
    - Optional: `GITHUB_BRANCH` (default `main`), `DATA_PATH` (default `merch.json`)
 6. Redeploy so the variables take effect.
 
-The first save creates `merch.json` in the data repo. Every save after that is a commit, so the repo history is your audit trail and undo.
+The first save creates `merch.json` in the data repo, and uploaded art lands in `art/` beside it. Every save after that is a commit, so the repo history is your audit trail and undo.
 
 Local dev: `vercel dev` (after `vercel link` and `vercel env pull`).
 
@@ -26,7 +26,7 @@ Tests: `npm test`
 ## Two pages
 
 - `/` is the member page. No password. It shows each item's art, price, status, and the Chipply link while ordering is open. Denied, withdrawn and anything unchecked on the officer form never reaches it, and officer-only fields (vendor, notes, CO email, receipts) are stripped on the server, not hidden in the browser.
-- `/admin` is the officer page, behind `APP_PASSWORD`. Share that password with the GCO and anyone else who maintains items. Bookmark this one.
+- `/admin` is the officer page (served from `admin.html`; `vercel.json` sets `cleanUrls` so the `.html` can be left off), behind `APP_PASSWORD`. Share that password with the GCO and anyone else who maintains items. Bookmark this one.
 
 Each item has a "Show this item on the member page" checkbox, on by default.
 
@@ -38,6 +38,8 @@ Each item has a "Show this item on the member page" checkbox, on by default.
 - `js/public.js` member page.
 - `api/_store.js` GitHub read and write helpers, shared by both endpoints.
 - `api/public.js` read-only, stripped-down feed for the member page.
+- `api/upload.js` commits uploaded art to `art/` in the data repo. Password protected, 4 MB cap.
+- `api/art.js` serves those files back at `/api/art?f=<name>`, so the data repo stays private.
 - `api/data.js` GET and PUT for the dataset, stored as one JSON file in the data repo. Saves are versioned so two tabs can't overwrite each other.
 - `tests/rules.test.js`
 
