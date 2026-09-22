@@ -366,20 +366,25 @@ export function publicOrder(a, b) {
   return r || (slotDate(b) || '').localeCompare(slotDate(a) || '');
 }
 
-// Prices for the card. If the variant costs something different, both show.
+// Price rows for a card. Every item gets the same shape: a label, an optional
+// variant marker, and a price. Variants only get their own row when the price
+// differs; otherwise the one row carries the variant name.
 export function priceLines(item) {
   const money = (v) => {
     const n = Number(v);
-    return v === '' || v === undefined || !Number.isFinite(n) ? '' : `$${n.toFixed(2)}`;
+    return v === '' || v === undefined || v === null || !Number.isFinite(n) ? '' : `$${n.toFixed(2)}`;
   };
   const base = money(item.price);
-  const variant = money(item.variantPrice);
-  if (base && variant) {
+  const varPrice = money(item.variantPrice);
+  const name = item.variant || 'Variant';
+
+  if (base && varPrice) {
     return [
-      { label: 'Standard', price: base },
-      { label: item.variant || 'Variant', price: variant },
+      { label: 'Standard', variant: false, price: base },
+      { label: name, variant: true, price: varPrice },
     ];
   }
-  if (variant) return [{ label: item.variant || 'Variant', price: `${variant} each` }];
-  return base ? [{ label: '', price: `${base} each` }] : [];
+  if (varPrice) return [{ label: name, variant: true, price: varPrice }];
+  if (base) return [{ label: item.variant ? name : 'Each', variant: Boolean(item.variant), price: base }];
+  return [];
 }
