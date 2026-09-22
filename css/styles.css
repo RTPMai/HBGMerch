@@ -255,7 +255,17 @@ legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
 }
 
 /* ---------- member page ---------- */
-.public-top { margin-bottom: 18px; }
+.public-top { margin-bottom: 18px; align-items: flex-start; }
+.officer {
+  padding: 7px 13px;
+  border: 1px solid var(--ring);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.officer:hover { border-color: var(--cream); color: var(--cream); }
 .public-top h1 { font-size: 2rem; }
 
 .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; align-items: start; }
