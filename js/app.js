@@ -170,7 +170,7 @@ function render() {
     const detail = it.type === 'event' && it.eventDate ? `<small>${esc(it.eventName || 'Event')}, ${R.formatDate(it.eventDate)}</small>`
       : it.type === 'memorial' && it.honoree ? `<small>${esc(it.honoree)}</small>` : '';
     return `<tr>
-      <td><button class="row-link" data-edit="${esc(it.id)}">${esc(it.name)}</button>${it.variant ? `<small>Variant: ${esc(it.variant)}</small>` : ''}</td>
+      <td><button class="row-link" data-edit="${esc(it.id)}">${esc(it.name)}</button>${it.variant ? `<small>Variant: ${esc(it.variant)}</small>` : ''}${(it.options || []).length ? `<small>${it.options.length} priced options</small>` : ''}</td>
       <td>${esc(R.TYPES[it.type] || it.type)}${detail}</td>
       <td class="num">${R.slotCost(it) || '<span class="muted">None</span>'}</td>
       <td><span class="pill ${st}">${R.STATUS_LABELS[st]}</span></td>
@@ -229,6 +229,19 @@ function render() {
 
 // ---------- item form ----------
 
+function optionRow(option = {}) {
+  return `<div class="option-row">
+    <input name="optLabel" value="${esc(option.label || '')}" placeholder="Hoodie, 2XL, navy">
+    <input name="optPrice" inputmode="decimal" value="${esc(option.price || '')}" placeholder="29.36">
+    <button type="button" class="link remove-option" aria-label="Remove this option">Remove</button>
+  </div>`;
+}
+
+function optionRows(item) {
+  const rows = (item.options || []).filter((o) => o && (o.label || o.price));
+  return (rows.length ? rows : []).map(optionRow).join('');
+}
+
 function dateField(item, key, label) {
   return `<label>${label}<input type="date" name="${key}" value="${esc(item[key] || '')}"></label>`;
 }
@@ -259,10 +272,16 @@ function openItem(id, prefill = null) {
         <label data-for="event">Event date <input name="eventDate" type="date" value="${v('eventDate')}"></label>
         <label data-for="memorial" class="full">Honoree name or TK ID <input name="honoree" value="${v('honoree')}"></label>
 
-        <label>Variant <input name="variant" value="${v('variant')}" placeholder="One allowed"></label>
+        <label>Design variant <input name="variant" value="${v('variant')}" placeholder="One allowed per item"></label>
         <label>Quantity <input name="quantity" type="number" min="0" step="1" value="${v('quantity')}"></label>
         <label>Vendor <input name="vendor" value="${v('vendor')}"></label>
-        <label>Price per piece <input name="price" inputmode="decimal" value="${v('price')}"></label>
+        <label>Price per piece <input name="price" inputmode="decimal" value="${v('price')}" placeholder="Leave blank if you list options below"></label>
+        <fieldset class="full">
+          <legend>Options priced separately</legend>
+          <div id="option-rows">${optionRows(it)}</div>
+          <button type="button" class="link" id="add-option">Add an option</button>
+          <p class="hint">For sizes or styles that cost different amounts, like a tee and a hoodie. Members see each line with its own price.</p>
+        </fieldset>
         <label class="full">Email subject <input name="emailSubject" value="${v('emailSubject')}" placeholder="So the approval thread is easy to find"></label>
         <label>CO email <input name="coEmail" type="email" value="${v('coEmail')}"></label>
         <label>Art link <input name="artUrl" type="text" value="${v('artUrl')}" placeholder="Pasted from the email, or uploaded below"></label>
@@ -304,6 +323,7 @@ function openItem(id, prefill = null) {
 
   const form = itemDialog.querySelector('form');
   wireUpload(form);
+  wireOptions(form);
   const typeSelect = form.elements.namedItem('type');
   const sync = () => form.querySelectorAll('[data-for]').forEach((el) => { el.hidden = el.dataset.for !== typeSelect.value; });
   typeSelect.addEventListener('change', sync);
@@ -311,8 +331,16 @@ function openItem(id, prefill = null) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fields = Object.fromEntries(new FormData(form));
-    const item = { ...it, ...fields, id: it.id || crypto.randomUUID(), name: fields.name.trim(), isPublic: 'isPublic' in fields };
+    const data = new FormData(form);
+    const labels = data.getAll('optLabel');
+    const prices = data.getAll('optPrice');
+    const options = labels
+      .map((label, i) => ({ label: label.trim(), price: String(prices[i] ?? '').trim() }))
+      .filter((o) => o.label || o.price);
+    const fields = Object.fromEntries(data);
+    delete fields.optLabel;
+    delete fields.optPrice;
+    const item = { ...it, ...fields, options, id: it.id || crypto.randomUUID(), name: fields.name.trim(), isPublic: 'isPublic' in fields };
     if (item.type !== 'general') { item.setSize = ''; item.slotOwner = 'ours'; item.partners = ''; }
     const saved = await persist((d) => {
       const i = d.items.findIndex((x) => x.id === item.id);
@@ -335,6 +363,20 @@ function openItem(id, prefill = null) {
   });
 
   itemDialog.showModal();
+}
+
+// ---------- option rows ----------
+
+function wireOptions(form) {
+  const rows = form.querySelector('#option-rows');
+  if (!rows) return;
+  form.querySelector('#add-option').addEventListener('click', () => {
+    rows.insertAdjacentHTML('beforeend', optionRow());
+    rows.lastElementChild.querySelector('input').focus();
+  });
+  rows.addEventListener('click', (e) => {
+    if (e.target.classList.contains('remove-option')) e.target.closest('.option-row').remove();
+  });
 }
 
 // ---------- art upload ----------
