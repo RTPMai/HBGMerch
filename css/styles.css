@@ -216,10 +216,6 @@ dialog h2 + .hint { margin: 6px 0 0; font-size: 0.9rem; color: var(--muted); }
 
 fieldset { margin: 0; padding: 10px 12px 12px; border: 1px solid var(--ring); border-radius: 4px; }
 legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
-.option-row { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; margin-bottom: 8px; align-items: center; }
-.option-row .remove-option { font-size: 0.85rem; }
-#option-rows:empty + #add-option { margin-top: 2px; }
-
 .dates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
 .form-actions { display: flex; justify-content: space-between; gap: 8px; }
