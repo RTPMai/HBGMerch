@@ -23,11 +23,21 @@ Local dev: `vercel dev` (after `vercel link` and `vercel env pull`).
 
 Tests: `npm test`
 
+## Two pages
+
+- `/` is the member page. No password. It shows each item's art, price, status, and the Chipply link while ordering is open. Denied, withdrawn and anything unchecked on the officer form never reaches it, and officer-only fields (vendor, notes, CO email, receipts) are stripped on the server, not hidden in the browser.
+- `/admin` is the officer page, behind `APP_PASSWORD`. Share that password with the GCO and anyone else who maintains items. Bookmark this one.
+
+Each item has a "Show this item on the member page" checkbox, on by default.
+
 ## Files
 
 - `js/rules.js` all rule logic (Legion year, freeze, slots, flags). Pure functions, tested.
 - `js/api.js` every fetch goes through here.
-- `js/app.js` UI.
+- `js/app.js` officer UI.
+- `js/public.js` member page.
+- `api/_store.js` GitHub read and write helpers, shared by both endpoints.
+- `api/public.js` read-only, stripped-down feed for the member page.
 - `api/data.js` GET and PUT for the dataset, stored as one JSON file in the data repo. Saves are versioned so two tabs can't overwrite each other.
 - `tests/rules.test.js`
 

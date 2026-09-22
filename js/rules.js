@@ -323,3 +323,45 @@ export function workOrder(a, b) {
   const r = RANK[deriveStatus(a)] - RANK[deriveStatus(b)];
   return r || (slotDate(b) || '').localeCompare(slotDate(a) || '');
 }
+
+// ---------- public member view ----------
+
+const PUBLIC_FIELDS = ['id', 'name', 'type', 'price', 'quantity', 'artUrl', 'chipplyUrl',
+  'saleStart', 'saleEnd', 'eventName', 'eventDate', 'variant',
+  'coApproved', 'submitted', 'approved', 'produced', 'receiptSent', 'outcome'];
+
+// Strips an item down to what members are allowed to see. Denied, withdrawn and
+// items marked private never make it out of the server.
+export function publicItem(item) {
+  if (item.isPublic === false) return null;
+  const st = deriveStatus(item);
+  if (st === 'denied' || st === 'withdrawn') return null;
+  const out = {};
+  for (const k of PUBLIC_FIELDS) if (item[k]) out[k] = item[k];
+  return out;
+}
+
+// Member-facing status. Rank is for sorting: open orders first, done last.
+export function publicStatus(item, todayIso = todayISO()) {
+  const st = deriveStatus(item);
+  const today = parseISO(todayIso);
+  const start = parseISO(item.saleStart);
+  const end = parseISO(item.saleEnd);
+
+  if (st === 'draft') return { rank: 5, tone: 'plain', label: 'In the works', note: 'Design stage, not submitted yet.' };
+  if (st === 'co_approved' || st === 'submitted') {
+    return { rank: 4, tone: 'plain', label: 'Waiting on Legion approval', note: 'Submitted to the LMBO.' };
+  }
+  if (st === 'approved') {
+    if (start && today < start) return { rank: 2, tone: 'soon', label: 'Ordering opens soon', note: `Opens ${formatDate(start)}.` };
+    if (end && today > end) return { rank: 3, tone: 'plain', label: 'Ordering closed', note: 'Going into production.' };
+    return { rank: 1, tone: 'open', label: 'Ordering open', note: end ? `Closes ${formatDate(end)}.` : 'Approved and available.' };
+  }
+  if (st === 'produced') return { rank: 3, tone: 'plain', label: 'In production', note: 'Watch for pickup or shipping details.' };
+  return { rank: 6, tone: 'done', label: 'Complete', note: 'This run is finished.' };
+}
+
+export function publicOrder(a, b) {
+  const r = publicStatus(a).rank - publicStatus(b).rank;
+  return r || (slotDate(b) || '').localeCompare(slotDate(a) || '');
+}

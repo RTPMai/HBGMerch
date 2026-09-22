@@ -253,3 +253,68 @@ legend { padding: 0 4px; font-size: 0.9rem; color: var(--muted); }
   .flag .step { margin-left: 14px; }
   .flag-name { flex: none; }
 }
+
+/* ---------- member page ---------- */
+.public-top { margin-bottom: 18px; }
+.public-top h1 { font-size: 2rem; }
+
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; align-items: start; }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ring);
+  border-top: 3px solid var(--purple);
+  border-radius: 6px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.card-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 190px;
+  padding: 14px;
+  background: var(--void);
+  border-bottom: 1px solid var(--ring);
+}
+.card-art img { max-width: 100%; max-height: 200px; }
+.card-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.card-body h2 { font-size: 1.1rem; }
+.card-body .sub { margin: 0; font-size: 0.92rem; }
+.meta { margin: 2px 0 0; font-size: 0.88rem; color: var(--muted); }
+
+.status {
+  align-self: flex-start;
+  font-family: var(--wide);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border: 1px solid var(--ring-light);
+  border-radius: 3px;
+  color: var(--muted);
+}
+.status.open { border-color: var(--cream); color: var(--cream); }
+.status.soon { border-color: var(--purple); color: #C9A9DB; }
+.status.done { border-color: var(--ring); color: var(--ring-light); }
+
+.order {
+  margin-top: 10px;
+  align-self: flex-start;
+  padding: 9px 16px;
+  border-radius: 4px;
+  background: var(--red);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+.order:hover { background: var(--red-deep); }
+
+.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
+.check input { width: auto; }
+
+.public-footer { display: block; margin-top: 36px; padding-top: 16px; border-top: 1px solid #2B2B2E; }
+.public-footer .sub { font-size: 0.85rem; }
+
+a.link { color: var(--muted); font-size: 0.9rem; }

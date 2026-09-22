@@ -167,3 +167,28 @@ test('work order puts receipts owed first and done items last', () => {
   ];
   assert.deepEqual(items.sort(R.workOrder).map((i) => i.id), ['owed', 'plan', 'done']);
 });
+
+test('public view hides private, denied and internal fields', () => {
+  assert.equal(R.publicItem({ id: 'a', name: 'Secret', isPublic: false }), null);
+  assert.equal(R.publicItem({ id: 'b', name: 'Nope', outcome: 'denied' }), null);
+  const pub = R.publicItem({
+    id: 'c', name: 'Coin', type: 'basic', price: '6.15', artUrl: 'http://x/y.png',
+    chipplyUrl: 'http://store', saleStart: '2026-09-18', submitted: '2026-09-18',
+    coEmail: 'co@example.com', vendor: 'P&M', notes: 'internal', emailSubject: 'thread',
+  });
+  assert.equal(pub.name, 'Coin');
+  assert.equal(pub.coEmail, undefined);
+  assert.equal(pub.vendor, undefined);
+  assert.equal(pub.notes, undefined);
+  assert.equal(pub.emailSubject, undefined);
+});
+
+test('public status follows the sale window', () => {
+  const base = { coApproved: '2026-08-01', submitted: '2026-08-02', approved: '2026-08-10', saleStart: '2026-09-18', saleEnd: '2026-12-31' };
+  assert.equal(R.publicStatus(base, '2026-09-01').label, 'Ordering opens soon');
+  assert.equal(R.publicStatus(base, '2026-10-01').label, 'Ordering open');
+  assert.equal(R.publicStatus(base, '2027-01-05').label, 'Ordering closed');
+  assert.equal(R.publicStatus({ ...base, produced: '2027-01-10' }, '2027-01-12').label, 'In production');
+  assert.equal(R.publicStatus({ ...base, produced: '2027-01-10', receiptSent: '2027-01-11' }, '2027-01-12').label, 'Complete');
+  assert.equal(R.publicStatus({ created: '2026-09-01' }, '2026-09-05').label, 'In the works');
+});

@@ -221,6 +221,7 @@ function render() {
       ${table}
     </section>
     <footer>
+      <a class="link" href="/" target="_blank" rel="noopener">View member page</a>
       <button class="link" data-action="export">Download backup</button>
       <button class="link" data-action="logout">Sign out</button>
     </footer>`;
@@ -265,6 +266,8 @@ function openItem(id, prefill = null) {
         <label class="full">Email subject <input name="emailSubject" value="${v('emailSubject')}" placeholder="So the approval thread is easy to find"></label>
         <label>CO email <input name="coEmail" type="email" value="${v('coEmail')}"></label>
         <label>Art link <input name="artUrl" type="url" value="${v('artUrl')}"></label>
+        <label class="full">Chipply store link <input name="chipplyUrl" type="url" value="${v('chipplyUrl')}" placeholder="Shown to members when ordering is open"></label>
+        <label class="check full"><input type="checkbox" name="isPublic" ${it.isPublic === false ? '' : 'checked'}> Show this item on the member page</label>
         <label>Sale opens <input name="saleStart" type="date" value="${v('saleStart')}"></label>
         <label>Sale closes <input name="saleEnd" type="date" value="${v('saleEnd')}"></label>
         ${it.artUrl ? `<a class="art full" href="${v('artUrl')}" target="_blank" rel="noopener"><img src="${v('artUrl')}" alt="Submitted art for ${v('name')}"></a>` : ''}
@@ -300,7 +303,7 @@ function openItem(id, prefill = null) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fields = Object.fromEntries(new FormData(form));
-    const item = { ...it, ...fields, id: it.id || crypto.randomUUID(), name: fields.name.trim() };
+    const item = { ...it, ...fields, id: it.id || crypto.randomUUID(), name: fields.name.trim(), isPublic: 'isPublic' in fields };
     if (item.type !== 'general') { item.setSize = ''; item.slotOwner = 'ours'; item.partners = ''; }
     const saved = await persist((d) => {
       const i = d.items.findIndex((x) => x.id === item.id);
