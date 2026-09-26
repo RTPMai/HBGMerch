@@ -23,19 +23,18 @@ Local dev: `vercel dev` (after `vercel link` and `vercel env pull`).
 
 Tests: `npm test`
 
-## Three pages
+## Two pages
 
 - `/` is the member page. No password. It shows each item's art, price, status, and the Chipply link while ordering is open. Denied, withdrawn and anything unchecked on the officer form never reaches it, and officer-only fields (vendor, notes, CO email, receipts) are stripped on the server, not hidden in the browser.
 - `/admin` is the officer page (served from `admin.html`; `vercel.json` sets `cleanUrls` so the `.html` can be left off), behind `APP_PASSWORD`. Share that password with the GCO and anyone else who maintains items. Bookmark this one.
 
-- `/interest` is the member interest form. No password. Members find themselves on the roster by name or Legion ID, put a number on each open item (per size, per variant), and send once. It's a gauge for the upper limit, not an order.
 
 Each item has a "Show this item on the member page" checkbox, on by default.
 
 ## Member interest
 
 - Open an item and tick "Ask members how many they'd buy". Add sizes (comma separated) for apparel; leave blank for coins, patches and the like. A variant gets its own boxes automatically.
-- The member page shows a "Give interest" banner while anything is collecting.
+- It lives on the member page. While anything is collecting, an Interest check panel sits at the top: members find themselves by name or Legion ID, which unlocks the quantity boxes on those item cards, then send once. `/interest` redirects there, and so does the officer page's Copy link. Interest items the officer hid from the member page still show up while collecting.
 - One answer per Legion ID per item, enforced on the server. Blank counts as 0, so "I'd pass" still counts as an answer. 25 per box max.
 - Add an item later and members who already answered can come back for just the new one.
 - The officer page's Member interest section shows totals by size and variant, how many members answered, and a warning when interest passes the LFL threshold. "Stop collecting" closes an item and keeps its answers. "Clear" lets a member redo an answer. "Download CSV" exports everything.
@@ -48,9 +47,8 @@ Each item has a "Show this item on the member page" checkbox, on by default.
 - `js/rules.js` all rule logic (Legion year, freeze, slots, flags). Pure functions, tested.
 - `js/api.js` every fetch goes through here.
 - `js/app.js` officer UI.
-- `js/public.js` member page.
+- `js/public.js` member page, including the interest check.
 - `js/interest.js` interest rules: roster parsing and search, one-answer checks, totals, CSV. Pure functions, tested.
-- `js/interest-page.js` interest form.
 - `js/roster.js` default garrison roster.
 - `api/_store.js` GitHub read and write helpers, shared by both endpoints.
 - `api/public.js` read-only, stripped-down feed for the member page.

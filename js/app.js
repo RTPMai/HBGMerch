@@ -241,7 +241,7 @@ function render() {
     </section>
     <footer>
       <a class="link" href="/" target="_blank" rel="noopener">View member page</a>
-      <a class="link" href="/interest" target="_blank" rel="noopener">View interest form</a>
+      <a class="link" href="/#interest" target="_blank" rel="noopener">View interest check</a>
       <button class="link" data-action="export">Download backup</button>
       <button class="link" data-action="logout">Sign out</button>
     </footer>`;
@@ -552,7 +552,7 @@ function interestSection() {
     <div class="section-head">
       <h2>Member interest</h2>
       <div class="top-actions">
-        <button data-action="interest-link">Copy form link</button>
+        <button data-action="interest-link">Copy link</button>
         <button data-action="roster">Roster</button>
         <button data-action="interest-csv" ${inter && Object.keys(responses).length ? '' : 'disabled'}>Download CSV</button>
         <button class="link" data-action="interest-refresh">Refresh</button>
@@ -620,7 +620,7 @@ function interestSection() {
           }).join('')}</tbody>
         </table></div>
       </details>`
-    : '<p class="empty">No answers yet. Share the form link with the garrison.</p>';
+    : '<p class="empty">No answers yet. Share the member page link with the garrison.</p>';
 
   return `<section>${head}<ul class="interest-list">${cards}</ul>${people}</section>`;
 }
@@ -663,12 +663,12 @@ function exportInterest() {
 }
 
 async function copyInterestLink() {
-  const url = `${location.origin}/interest`;
+  const url = `${location.origin}/#interest`;
   try {
     await navigator.clipboard.writeText(url);
-    toast('Form link copied.');
+    toast('Link copied. It opens the member page at the interest check.');
   } catch {
-    prompt('Copy the form link:', url);
+    prompt('Copy the link:', url);
   }
 }
 
