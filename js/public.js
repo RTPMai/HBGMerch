@@ -155,7 +155,7 @@ function qtyBlock(it) {
           <div class="qty-grid wide">
             ${list.map((c) => `
               <label class="qty">
-                <span>${esc(c.variant || 'Quantity')}</span>
+                <span>${esc(c.variant || 'Quantity')}${c.command ? ' <span class="variant-tag command">Command only</span>' : ''}</span>
                 <input class="qty-input" type="number" inputmode="numeric" min="0" max="${state.max}" step="1"
                   name="${esc(it.id)}::${esc(c.key)}" placeholder="0" ${locked ? 'disabled' : ''}>
               </label>`).join('')}
@@ -178,9 +178,16 @@ function card(item, today) {
 
   return `
     <li class="card${intr ? ' interest-card' : ''}${done ? ' is-done' : ''}">
-      <div class="card-art">${item.artUrl
-        ? `<img src="${esc(item.artUrl)}" alt="Art for ${esc(item.name)}" loading="lazy">`
-        : '<img class="placeholder" src="assets/hbg.svg" alt="" aria-hidden="true">'}</div>
+      <div class="card-art">${!item.artUrl
+        ? '<img class="placeholder" src="assets/hbg.svg" alt="" aria-hidden="true">'
+        : isPdf(item.artUrl)
+          ? `<a class="art-zoom art-pdf" href="${esc(item.artUrl)}" target="_blank" rel="noopener">
+              <span>View art (PDF)</span></a>`
+          : `<button type="button" class="art-zoom" data-zoom="${esc(item.artUrl)}" data-zoom-name="${esc(item.name)}"
+              aria-label="View larger art for ${esc(item.name)}">
+              <img src="${esc(item.artUrl)}" alt="Art for ${esc(item.name)}" loading="lazy">
+              <span class="zoom-hint" aria-hidden="true">Tap to enlarge</span>
+            </button>`}</div>
       <div class="card-body">
         <div class="tags">
           ${intr ? `<span class="status interest">${done ? 'Answered' : 'Interest check'}</span>` : ''}
@@ -191,7 +198,7 @@ function card(item, today) {
         ${intr?.note ? `<p class="sub">${esc(intr.note)}</p>` : ''}
         ${event ? `<p class="meta">${event}</p>` : ''}
         ${prices.length ? `<ul class="prices">${prices.map((p) => `<li>
-          <span class="price-label">${esc(p.label)}${p.variant ? '<span class="variant-tag">Variant</span>' : ''}</span>
+          <span class="price-label">${esc(p.label)}${p.command ? '<span class="variant-tag command">Command only</span>' : p.variant ? '<span class="variant-tag">Variant</span>' : ''}</span>
           <span class="price">${esc(p.price)}</span>
         </li>`).join('')}</ul>` : '<p class="prices empty-price">Pricing to come</p>'}
         ${intr ? qtyBlock(intr) : ''}
@@ -317,6 +324,40 @@ async function submit(form) {
   }
 }
 
+// ---------- art viewer ----------
+
+const isPdf = (url) => /\.pdf(\?|$)/i.test(url) || /[?&]f=[^&]*\.pdf/i.test(url);
+
+const viewer = document.createElement('dialog');
+viewer.className = 'art-viewer';
+viewer.setAttribute('aria-label', 'Item art');
+viewer.innerHTML = `
+  <div class="viewer-bar">
+    <h2 class="viewer-title"></h2>
+    <div class="viewer-actions">
+      <a class="viewer-open" target="_blank" rel="noopener">Open full size</a>
+      <button type="button" class="viewer-close" aria-label="Close">Close</button>
+    </div>
+  </div>
+  <div class="viewer-stage"><img alt=""></div>`;
+document.body.append(viewer);
+
+function openViewer(url, name) {
+  viewer.querySelector('.viewer-title').textContent = name;
+  viewer.querySelector('.viewer-open').href = url;
+  const img = viewer.querySelector('img');
+  img.src = url;
+  img.alt = `Art for ${name}`;
+  viewer.showModal();
+  viewer.querySelector('.viewer-close').focus();
+}
+
+viewer.addEventListener('click', (e) => {
+  // Close on the X, or a click on the dark area around the art.
+  if (e.target.closest('.viewer-close') || e.target === viewer || e.target.classList.contains('viewer-stage')) viewer.close();
+});
+viewer.addEventListener('close', () => { viewer.querySelector('img').removeAttribute('src'); });
+
 // ---------- events ----------
 
 app.addEventListener('input', (e) => {
@@ -349,6 +390,8 @@ app.addEventListener('keydown', (e) => {
 });
 
 app.addEventListener('click', (e) => {
+  const zoom = e.target.closest('[data-zoom]');
+  if (zoom) return openViewer(zoom.dataset.zoom, zoom.dataset.zoomName);
   const opt = e.target.closest('[data-member]');
   if (opt) return pickMember(opt.dataset.member);
   if (e.target.closest('[data-action]')?.dataset.action === 'change-member') {

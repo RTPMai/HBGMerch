@@ -29,12 +29,13 @@ Tests: `npm test`
 - `/admin` is the officer page (served from `admin.html`; `vercel.json` sets `cleanUrls` so the `.html` can be left off), behind `APP_PASSWORD`. Share that password with the GCO and anyone else who maintains items. Bookmark this one.
 
 
-Each item has a "Show this item on the member page" checkbox, on by default.
+Each item has a "Show this item on the member page" checkbox, on by default. Members can tap an item's art to see it full size.
 
 ## Member interest
 
 - Interest is on by default for every item until it's produced. Denied and withdrawn items never collect. Turn it off per item ("Ask members how many they'd buy" in the item form, or "Stop collecting"), or in bulk: tick items in the Items table and use Collect interest or Stop collecting. An explicit on or off always wins over the default.
 - Members give one quantity per item, or one per variant when the item has a variant. No sizes.
+- Tick "Variant is for command staff only" on an item and its variant shows a Command only tag on the member page, on the price and the interest box.
 - The point is the Legion side: nothing is made until the sale runs, and the totals tell you whether an item's likely quantity is over the LFL threshold and needs LFL approval before the sale.
 - It lives on the member page. While anything is collecting, an Interest check panel sits at the top: members find themselves by name or Legion ID, which unlocks the quantity boxes on those item cards, then send once. `/interest` redirects there, and so does the officer page's Copy link. Interest items the officer hid from the member page still show up while collecting.
 - One answer per Legion ID per item, enforced on the server. Blank counts as 0, so "I'd pass" still counts as an answer. 25 per box max.

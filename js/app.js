@@ -197,7 +197,7 @@ function render() {
       : it.type === 'memorial' && it.honoree ? `<small>${esc(it.honoree)}</small>` : '';
     return `<tr class="${picked ? 'picked' : ''}">
       <td class="pick"><input type="checkbox" data-select="${esc(it.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(it.name)}"></td>
-      <td><button class="row-link" data-edit="${esc(it.id)}">${esc(it.name)}</button>${it.variant ? `<small>Variant: ${esc(it.variant)}</small>` : ''}${it.variantPrice ? `<small>Variant price: $${esc(it.variantPrice)}</small>` : ''}</td>
+      <td><button class="row-link" data-edit="${esc(it.id)}">${esc(it.name)}</button>${it.variant ? `<small>Variant: ${esc(it.variant)}${it.variantCommandOnly ? ' (command only)' : ''}</small>` : ''}${it.variantPrice ? `<small>Variant price: $${esc(it.variantPrice)}</small>` : ''}</td>
       <td>${esc(R.TYPES[it.type] || it.type)}${detail}</td>
       <td class="num">${R.slotCost(it) || '<span class="muted">None</span>'}</td>
       <td><span class="pill ${st}">${R.STATUS_LABELS[st]}</span></td>
@@ -306,6 +306,7 @@ function openItem(id, prefill = null) {
         <label>Variant <input name="variant" value="${v('variant')}" placeholder="One allowed per item"></label>
         <label>Variant price <input name="variantPrice" inputmode="decimal" value="${v('variantPrice')}" placeholder="Only if it costs more">
           <span class="hint">Leave blank when the variant is the same price.</span></label>
+        <label class="check full"><input type="checkbox" name="variantCommandOnly" ${it.variantCommandOnly ? 'checked' : ''}> Variant is for command staff only</label>
         <label class="full">Vendor <input name="vendor" value="${v('vendor')}"></label>
         <label class="full">Email subject <input name="emailSubject" value="${v('emailSubject')}" placeholder="So the approval thread is easy to find"></label>
         <label>CO email <input name="coEmail" type="email" value="${v('coEmail')}"></label>
@@ -367,6 +368,7 @@ function openItem(id, prefill = null) {
     const item = {
       ...it, ...fields, id: it.id || crypto.randomUUID(), name: fields.name.trim(),
       isPublic: 'isPublic' in fields, collectInterest: 'collectInterest' in fields,
+      variantCommandOnly: 'variantCommandOnly' in fields && Boolean(fields.variant.trim()),
     };
     if (item.type !== 'general') { item.setSize = ''; item.slotOwner = 'ours'; item.partners = ''; }
     const saved = await persist((d) => {

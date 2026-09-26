@@ -110,3 +110,13 @@ test('csv has one row per choice and a zero row for a pass', () => {
   assert.equal(csv[1], '5107,TK,Jason L Schuett,Shirt,,2,T1');
   assert.equal(csv[2], '5107,TK,Jason L Schuett,Coin,,0,T2');
 });
+
+test('command-only variant is tagged in choices and prices', () => {
+  const cmd = { id: 'k', name: 'Coin', variant: 'Command', variantCommandOnly: true, price: '10' };
+  assert.deepEqual(I.choices(cmd).map((c) => [c.key, c.command]), [['Standard|', false], ['Command|', true]]);
+  const p = I.publicInterestItem(cmd).prices;
+  assert.deepEqual(p.map((l) => [l.label, l.command]), [['Standard', false], ['Command', true]]);
+  const priced = I.publicInterestItem({ ...cmd, variantPrice: '15' }).prices;
+  assert.deepEqual(priced.map((l) => [l.label, l.price, l.command]), [['Standard', '$10.00', false], ['Command', '$15.00', true]]);
+  assert.equal(I.choices({ variantCommandOnly: true })[0].command, false);
+});

@@ -326,7 +326,7 @@ export function workOrder(a, b) {
 
 // ---------- public member view ----------
 
-const PUBLIC_FIELDS = ['id', 'name', 'type', 'price', 'variantPrice', 'quantity', 'artUrl', 'chipplyUrl',
+const PUBLIC_FIELDS = ['id', 'name', 'type', 'price', 'variantPrice', 'variantCommandOnly', 'quantity', 'artUrl', 'chipplyUrl',
   'saleStart', 'saleEnd', 'eventName', 'eventDate', 'variant',
   'coApproved', 'submitted', 'approved', 'produced', 'receiptSent', 'outcome'];
 
@@ -377,14 +377,23 @@ export function priceLines(item) {
   const base = money(item.price);
   const varPrice = money(item.variantPrice);
   const name = item.variant || 'Variant';
+  const command = Boolean(item.variant && item.variantCommandOnly);
 
   if (base && varPrice) {
     return [
-      { label: 'Standard', variant: false, price: base },
-      { label: name, variant: true, price: varPrice },
+      { label: 'Standard', variant: false, command: false, price: base },
+      { label: name, variant: true, command, price: varPrice },
     ];
   }
-  if (varPrice) return [{ label: name, variant: true, price: varPrice }];
-  if (base) return [{ label: item.variant ? name : 'Each', variant: Boolean(item.variant), price: base }];
+  if (varPrice) return [{ label: name, variant: true, command, price: varPrice }];
+  // Same price: one row carries the variant name. A command-only variant
+  // gets its own row so the standard version doesn't look restricted.
+  if (base && command) {
+    return [
+      { label: 'Standard', variant: false, command: false, price: base },
+      { label: name, variant: true, command: true, price: base },
+    ];
+  }
+  if (base) return [{ label: item.variant ? name : 'Each', variant: Boolean(item.variant), command: false, price: base }];
   return [];
 }

@@ -86,8 +86,11 @@ export function isCollecting(item) {
 // What a member can put a number on: one box, or one per variant when the
 // item has one. Key is "variant|" (blank variant for a single box).
 export function choices(item) {
-  const variants = item.variant ? ['Standard', item.variant] : [''];
-  return variants.map((v) => ({ key: `${v}|`, variant: v }));
+  if (!item.variant) return [{ key: '|', variant: '', command: false }];
+  return [
+    { key: 'Standard|', variant: 'Standard', command: false },
+    { key: `${item.variant}|`, variant: item.variant, command: Boolean(item.variantCommandOnly) },
+  ];
 }
 
 export function choiceLabel(key) {
