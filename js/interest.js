@@ -78,10 +78,17 @@ export function parseSizes(text) {
     .filter((s, i, a) => a.indexOf(s) === i);
 }
 
+// Interest is on by default until an item is produced. An officer's explicit
+// choice (collectInterest true or false) always wins, except that denied and
+// withdrawn items never collect.
+const DEFAULT_ON = new Set(['draft', 'co_approved', 'submitted', 'approved']);
+
 export function isCollecting(item) {
-  if (!item || !item.collectInterest) return false;
+  if (!item) return false;
   const st = deriveStatus(item);
-  return st !== 'denied' && st !== 'withdrawn';
+  if (st === 'denied' || st === 'withdrawn') return false;
+  if (typeof item.collectInterest === 'boolean') return item.collectInterest;
+  return DEFAULT_ON.has(st);
 }
 
 // Every combination a member can put a number on. Key is "variant|size",

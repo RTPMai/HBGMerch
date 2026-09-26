@@ -47,6 +47,15 @@ test('only ticked, live items collect interest', () => {
   assert.equal(I.isCollecting(denied), false);
 });
 
+test('interest defaults on until produced, explicit choice wins', () => {
+  assert.equal(I.isCollecting({}), true);
+  assert.equal(I.isCollecting({ approved: '2026-03-09' }), true);
+  assert.equal(I.isCollecting({ produced: '2026-04-01' }), false);
+  assert.equal(I.isCollecting({ produced: '2026-04-01', collectInterest: true }), true);
+  assert.equal(I.isCollecting({ collectInterest: false }), false);
+  assert.equal(I.isCollecting({ outcome: 'withdrawn', collectInterest: true }), false);
+});
+
 test('public interest item carries no officer fields', () => {
   const p = I.publicInterestItem({ ...coin, vendor: 'Secret', notes: 'n', coEmail: 'a@b.c' });
   assert.equal(p.vendor, undefined);

@@ -489,3 +489,27 @@ a.link { color: var(--muted); font-size: 0.9rem; }
   .submit-bar .sub { font-size: 0.85rem; }
   .submit-bar button { width: 100%; padding: 9px 16px; }
 }
+
+/* bulk interest */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px dashed var(--ring);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.bulk-bar.active { border: 1px solid var(--purple); background: rgba(141, 95, 167, 0.14); color: var(--text); }
+.bulk-count { margin-right: auto; }
+.bulk-bar.active .bulk-count { font-weight: 600; }
+.bulk-bar .step:disabled { opacity: 0.4; cursor: not-allowed; }
+.bulk-bar .step:disabled:hover { background: transparent; }
+th.pick, td.pick { width: 36px; padding-right: 0; }
+.pick input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--purple); cursor: pointer; }
+tr.picked td { background: rgba(141, 95, 167, 0.12); }
+.pill.interest-on { border-color: var(--purple); color: #C9A9DB; }
+.pill.interest-off { color: var(--muted); }

@@ -33,7 +33,8 @@ Each item has a "Show this item on the member page" checkbox, on by default.
 
 ## Member interest
 
-- Open an item and tick "Ask members how many they'd buy". Add sizes (comma separated) for apparel; leave blank for coins, patches and the like. A variant gets its own boxes automatically.
+- Interest is on by default for every item until it's produced. Denied and withdrawn items never collect. Turn it off per item ("Ask members how many they'd buy" in the item form, or "Stop collecting"), or in bulk: tick items in the Items table and use Collect interest or Stop collecting. An explicit on or off always wins over the default.
+- Add sizes (comma separated) for apparel; leave blank for coins, patches and the like. A variant gets its own boxes automatically.
 - It lives on the member page. While anything is collecting, an Interest check panel sits at the top: members find themselves by name or Legion ID, which unlocks the quantity boxes on those item cards, then send once. `/interest` redirects there, and so does the officer page's Copy link. Interest items the officer hid from the member page still show up while collecting.
 - One answer per Legion ID per item, enforced on the server. Blank counts as 0, so "I'd pass" still counts as an answer. 25 per box max.
 - Add an item later and members who already answered can come back for just the new one.

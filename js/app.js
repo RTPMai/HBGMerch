@@ -9,7 +9,7 @@ const settingsDialog = document.getElementById('settings-dialog');
 const importDialog = document.getElementById('import-dialog');
 const rosterDialog = document.getElementById('roster-dialog');
 
-const state = { data: null, year: null, interest: null, interestError: '' };
+const state = { data: null, year: null, interest: null, interestError: '', selected: new Set() };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -183,24 +183,46 @@ function render() {
       }).join('')}</ul>`
     : '<p class="empty">Nothing open. Receipts are in and no deadlines are close.</p>';
 
+  // Drop selections that aren't on screen (year changed, item deleted).
+  const onScreen = new Set(yearItems.map((i) => i.id));
+  for (const id of state.selected) if (!onScreen.has(id)) state.selected.delete(id);
+  const allPicked = yearItems.length > 0 && yearItems.every((i) => state.selected.has(i.id));
+  const somePicked = state.selected.size > 0;
+
   const rows = yearItems.map((it) => {
     const st = R.deriveStatus(it);
+    const picked = state.selected.has(it.id);
+    const collecting = I.isCollecting(it);
     const detail = it.type === 'event' && it.eventDate ? `<small>${esc(it.eventName || 'Event')}, ${R.formatDate(it.eventDate)}</small>`
       : it.type === 'memorial' && it.honoree ? `<small>${esc(it.honoree)}</small>` : '';
-    return `<tr>
+    return `<tr class="${picked ? 'picked' : ''}">
+      <td class="pick"><input type="checkbox" data-select="${esc(it.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(it.name)}"></td>
       <td><button class="row-link" data-edit="${esc(it.id)}">${esc(it.name)}</button>${it.variant ? `<small>Variant: ${esc(it.variant)}</small>` : ''}${it.variantPrice ? `<small>Variant price: $${esc(it.variantPrice)}</small>` : ''}</td>
       <td>${esc(R.TYPES[it.type] || it.type)}${detail}</td>
       <td class="num">${R.slotCost(it) || '<span class="muted">None</span>'}</td>
       <td><span class="pill ${st}">${R.STATUS_LABELS[st]}</span></td>
+      <td><span class="pill interest-${collecting ? 'on' : 'off'}">${collecting ? 'Collecting' : 'Off'}</span></td>
       <td>${R.nextAction(it)
         ? `<button class="step" data-advance="${esc(it.id)}" title="${esc(R.NEXT_STEP[st])}">${R.nextAction(it).label}</button>`
         : `<span class="muted">${R.NEXT_STEP[st]}</span>`}</td>
     </tr>`;
   }).join('');
 
+  const bulk = yearItems.length
+    ? `<div class="bulk-bar${somePicked ? ' active' : ''}" role="toolbar" aria-label="Selected items">
+        <span class="bulk-count">${somePicked ? `${state.selected.size} selected` : 'Select items to change interest in bulk'}</span>
+        <button class="step" data-bulk="on" ${somePicked ? '' : 'disabled'}>Collect interest</button>
+        <button class="step" data-bulk="off" ${somePicked ? '' : 'disabled'}>Stop collecting</button>
+        ${somePicked ? '<button class="link" data-bulk="clear">Clear selection</button>' : ''}
+      </div>`
+    : '';
+
   const table = yearItems.length
-    ? `<div class="table-wrap"><table>
-        <thead><tr><th>Item</th><th>Type</th><th class="num">Slots</th><th>Status</th><th>Next step</th></tr></thead>
+    ? `${bulk}<div class="table-wrap"><table>
+        <thead><tr>
+          <th class="pick"><input type="checkbox" data-select-all ${allPicked ? 'checked' : ''} aria-label="Select all items"></th>
+          <th>Item</th><th>Type</th><th class="num">Slots</th><th>Status</th><th>Interest</th><th>Next step</th>
+        </tr></thead>
         <tbody>${rows}</tbody></table></div>`
     : '<p class="empty">No items logged for this Legion year. Add one when a design starts moving.</p>';
 
@@ -300,7 +322,8 @@ function openItem(id, prefill = null) {
         <label class="check full"><input type="checkbox" name="isPublic" ${it.isPublic === false ? '' : 'checked'}> Show this item on the member page</label>
         <fieldset class="full">
           <legend>Member interest</legend>
-          <label class="check"><input type="checkbox" name="collectInterest" ${it.collectInterest ? 'checked' : ''}> Ask members how many they'd buy</label>
+          <label class="check"><input type="checkbox" name="collectInterest" ${I.isCollecting(it) ? 'checked' : ''}> Ask members how many they'd buy</label>
+          <span class="hint">On by default until an item is produced.</span>
           <div class="grid tight">
             <label>Sizes <input name="interestSizes" value="${v('interestSizes')}" placeholder="S, M, L, XL, 2XL, 3XL">
               <span class="hint">Comma separated. Blank for one-size items like coins and patches.</span></label>
@@ -625,6 +648,19 @@ function interestSection() {
   return `<section>${head}<ul class="interest-list">${cards}</ul>${people}</section>`;
 }
 
+async function bulkInterest(on) {
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  const names = ids.length === 1 ? state.data.items.find((i) => i.id === ids[0])?.name : `${ids.length} items`;
+  const blocked = state.data.items.filter((i) => ids.includes(i.id) && on && ['denied', 'withdrawn'].includes(R.deriveStatus(i)));
+  if (await persist((d) => { for (const t of d.items) if (ids.includes(t.id)) t.collectInterest = on; })) {
+    state.selected.clear();
+    render();
+    const skip = blocked.length ? ` ${blocked.length} denied or withdrawn ${blocked.length === 1 ? 'item stays' : 'items stay'} off.` : '';
+    toast(on ? `Collecting interest on ${names}.${skip}` : `Stopped collecting interest on ${names}. Answers so far are kept.`);
+  }
+}
+
 async function toggleInterest(id, button) {
   const it = state.data.items.find((i) => i.id === id);
   if (!it) return;
@@ -730,6 +766,13 @@ document.addEventListener('click', (e) => {
   const edit = e.target.closest('[data-edit]');
   if (edit) return openItem(edit.dataset.edit);
 
+  const bulkBtn = e.target.closest('[data-bulk]');
+  if (bulkBtn) {
+    if (bulkBtn.dataset.bulk === 'clear') { state.selected.clear(); return render(); }
+    bulkBtn.disabled = true;
+    return bulkInterest(bulkBtn.dataset.bulk === 'on');
+  }
+
   const toggle = e.target.closest('[data-interest-toggle]');
   if (toggle) return toggleInterest(toggle.dataset.interestToggle, toggle);
 
@@ -751,6 +794,16 @@ document.addEventListener('click', (e) => {
 });
 
 app.addEventListener('change', (e) => {
+  if (e.target.matches('[data-select]')) {
+    const id = e.target.dataset.select;
+    if (e.target.checked) state.selected.add(id); else state.selected.delete(id);
+    return render();
+  }
+  if (e.target.matches('[data-select-all]')) {
+    const ids = state.data.items.filter((i) => R.legionYearOf(R.slotDate(i)) === state.year).map((i) => i.id);
+    if (e.target.checked) ids.forEach((id) => state.selected.add(id)); else state.selected.clear();
+    return render();
+  }
   if (e.target.id === 'year-select') {
     state.year = Number(e.target.value);
     render();
