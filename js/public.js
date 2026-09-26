@@ -90,7 +90,7 @@ function interestPanel() {
         <span class="muted">${count} ${plural} open</span>
       </div>
       <p class="sub"><strong>This is not an order.</strong> Nothing is charged and you aren't held to it.
-        Tell us how many you'd likely buy so we know the most to make. You'll still order on Chipply once it's approved.</p>
+        Nothing gets made until the sale runs. Your numbers help us confirm quantities with the Legion before we open it. When the sale opens, you'll order through the ordering link.</p>
       ${who}
     </section>`;
 }
@@ -146,21 +146,16 @@ function qtyBlock(it) {
   }
   const locked = !state.member || Boolean(state.sent);
 
-  // Sizes and a variant: one box per variant. Otherwise one flat row.
-  const grouped = {};
-  if (it.sizes.length) for (const c of it.choices) (grouped[c.variant] ||= []).push(c);
-  else grouped[''] = it.choices;
-
   return `
     <div class="qty-block${locked ? ' locked' : ''}">
       <p class="qty-title">How many would you buy?</p>
-      ${Object.entries(grouped).map(([variant, list]) => `
+      ${[it.choices].map((list) => `
         <fieldset class="qty-group">
-          ${variant ? `<legend>${esc(variant)}</legend>` : '<legend class="sr-only">Quantity</legend>'}
-          <div class="qty-grid${it.sizes.length ? '' : ' wide'}">
+          <legend class="sr-only">Quantity</legend>
+          <div class="qty-grid wide">
             ${list.map((c) => `
               <label class="qty">
-                <span>${esc(c.size || c.variant || 'Quantity')}</span>
+                <span>${esc(c.variant || 'Quantity')}</span>
                 <input class="qty-input" type="number" inputmode="numeric" min="0" max="${state.max}" step="1"
                   name="${esc(it.id)}::${esc(c.key)}" placeholder="0" ${locked ? 'disabled' : ''}>
               </label>`).join('')}
@@ -201,7 +196,7 @@ function card(item, today) {
         </li>`).join('')}</ul>` : '<p class="prices empty-price">Pricing to come</p>'}
         ${intr ? qtyBlock(intr) : ''}
         ${item.chipplyUrl && open
-          ? `<a class="order" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Order on Chipply</a>`
+          ? `<a class="order" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Order now</a>`
           : item.chipplyUrl && status?.rank === 2
             ? `<a class="store-link" href="${esc(item.chipplyUrl)}" target="_blank" rel="noopener">Store link</a>`
             : ''}

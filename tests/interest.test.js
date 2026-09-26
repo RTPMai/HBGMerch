@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as I from '../js/interest.js';
 
 const roster = I.parseRoster('TK 5107 Jason L Schuett\nSL 82518 Ryan L Toney\nTK 18999\n');
-const shirt = { id: 's', name: 'Shirt', collectInterest: true, interestSizes: 'S, M, L' };
+const shirt = { id: 's', name: 'Shirt', collectInterest: true };
 const coin = { id: 'c', name: 'Coin', collectInterest: true, variant: 'Glow', price: '10' };
 const closed = { id: 'x', name: 'Old', collectInterest: false };
 const denied = { id: 'd', name: 'Nope', collectInterest: true, outcome: 'denied' };
@@ -33,11 +33,10 @@ test('roster search matches number, tag, and name', () => {
   assert.deepEqual(I.searchRoster(roster, ''), []);
 });
 
-test('choices cover variant by size', () => {
-  assert.deepEqual(I.choices(shirt).map((c) => c.key), ['|S', '|M', '|L']);
+test('one box per item, or one per variant', () => {
+  assert.deepEqual(I.choices(shirt).map((c) => c.key), ['|']);
   assert.deepEqual(I.choices(coin).map((c) => c.key), ['Standard|', 'Glow|']);
-  assert.deepEqual(I.choices({}).map((c) => c.key), ['|']);
-  assert.equal(I.choiceLabel('Glow|XL'), 'Glow, XL');
+  assert.equal(I.choiceLabel('Glow|'), 'Glow');
   assert.equal(I.choiceLabel('|'), 'Quantity');
 });
 
@@ -67,19 +66,19 @@ test('submission stores every open item, blanks as zero, clamps big numbers', ()
   const items = [shirt, coin, closed];
   const v = I.validateSubmission({
     roster, items, responses: {}, memberId: '5107',
-    answers: { s: { '|M': 2, '|L': 999, '|XXL': 4 }, x: { '|': 3 } },
+    answers: { s: { '|': 999, 'Bogus|': 4 }, x: { '|': 3 } },
     now: new Date('2026-09-26T12:00:00Z'),
   });
   assert.equal(v.error, undefined);
   assert.deepEqual(Object.keys(v.entries).sort(), ['c', 's']);
-  assert.deepEqual(v.entries.s.counts, { '|M': 2, '|L': I.MAX_PER_CHOICE });
+  assert.deepEqual(v.entries.s.counts, { '|': I.MAX_PER_CHOICE });
   assert.deepEqual(v.entries.c.counts, {});
   assert.equal(v.any, true);
 });
 
 test('one answer per member per item', () => {
-  const responses = { 5107: { s: { at: 't', counts: { '|M': 1 } } } };
-  const v = I.validateSubmission({ roster, items: [shirt, coin], responses, memberId: '5107', answers: { s: { '|L': 5 }, c: { 'Glow|': 1 } } });
+  const responses = { 5107: { s: { at: 't', counts: { '|': 1 } } } };
+  const v = I.validateSubmission({ roster, items: [shirt, coin], responses, memberId: '5107', answers: { s: { '|': 5 }, c: { 'Glow|': 1 } } });
   assert.deepEqual(Object.keys(v.entries), ['c']);
   assert.deepEqual(v.skipped, ['s']);
 
@@ -95,19 +94,19 @@ test('members not on the roster are refused', () => {
 
 test('tally totals pieces, respondents, and per-choice counts', () => {
   const responses = {
-    5107: { s: { counts: { '|M': 2, '|L': 1 } }, c: { counts: {} } },
-    82518: { s: { counts: { '|L': 3 } } },
+    5107: { s: { counts: { '|': 3 } }, c: { counts: {} } },
+    82518: { s: { counts: { '|': 3 } } },
   };
   const [s, c] = I.tally([shirt, coin], responses);
   assert.deepEqual([s.answered, s.wanting, s.total], [2, 2, 6]);
-  assert.deepEqual(s.byChoice, { '|S': 0, '|M': 2, '|L': 4 });
+  assert.deepEqual(s.byChoice, { '|': 6 });
   assert.deepEqual([c.answered, c.wanting, c.total], [1, 0, 0]);
 });
 
 test('csv has one row per choice and a zero row for a pass', () => {
-  const responses = { 5107: { s: { at: 'T1', counts: { '|M': 2 } }, c: { at: 'T2', counts: {} } } };
+  const responses = { 5107: { s: { at: 'T1', counts: { '|': 2 } }, c: { at: 'T2', counts: {} } } };
   const csv = I.toCSV([shirt, coin], responses, roster).trim().split('\n');
-  assert.equal(csv[0], 'Legion ID,Prefix,Name,Item,Variant,Size,Quantity,Answered');
-  assert.equal(csv[1], '5107,TK,Jason L Schuett,Shirt,,M,2,T1');
-  assert.equal(csv[2], '5107,TK,Jason L Schuett,Coin,,,0,T2');
+  assert.equal(csv[0], 'Legion ID,Prefix,Name,Item,Variant,Quantity,Answered');
+  assert.equal(csv[1], '5107,TK,Jason L Schuett,Shirt,,2,T1');
+  assert.equal(csv[2], '5107,TK,Jason L Schuett,Coin,,0,T2');
 });

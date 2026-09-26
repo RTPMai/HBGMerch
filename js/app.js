@@ -318,16 +318,14 @@ function openItem(id, prefill = null) {
           </div>
           <input type="file" id="art-file" class="sr-only" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf">
         </div>
-        <label class="full">Chipply store link <input name="chipplyUrl" type="url" value="${v('chipplyUrl')}" placeholder="Shown to members when ordering is open"></label>
+        <label class="full">Ordering link <input name="chipplyUrl" type="url" value="${v('chipplyUrl')}" placeholder="Shown to members when ordering is open"></label>
         <label class="check full"><input type="checkbox" name="isPublic" ${it.isPublic === false ? '' : 'checked'}> Show this item on the member page</label>
         <fieldset class="full">
           <legend>Member interest</legend>
           <label class="check"><input type="checkbox" name="collectInterest" ${I.isCollecting(it) ? 'checked' : ''}> Ask members how many they'd buy</label>
           <span class="hint">On by default until an item is produced.</span>
           <div class="grid tight">
-            <label>Sizes <input name="interestSizes" value="${v('interestSizes')}" placeholder="S, M, L, XL, 2XL, 3XL">
-              <span class="hint">Comma separated. Blank for one-size items like coins and patches.</span></label>
-            <label>Note to members <input name="interestNote" value="${v('interestNote')}" placeholder="Optional, like fit or colors"></label>
+            <label class="full">Note to members <input name="interestNote" value="${v('interestNote')}" placeholder="Optional, like colors or what's included"></label>
           </div>
         </fieldset>
         <label>Sale opens <input name="saleStart" type="date" value="${v('saleStart')}"></label>
@@ -369,7 +367,6 @@ function openItem(id, prefill = null) {
     const item = {
       ...it, ...fields, id: it.id || crypto.randomUUID(), name: fields.name.trim(),
       isPublic: 'isPublic' in fields, collectInterest: 'collectInterest' in fields,
-      interestSizes: I.parseSizes(fields.interestSizes).join(', '),
     };
     if (item.type !== 'general') { item.setSize = ''; item.slotOwner = 'ours'; item.partners = ''; }
     const saved = await persist((d) => {

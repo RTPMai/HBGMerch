@@ -70,14 +70,6 @@ export function searchRoster(roster, query, limit = 8) {
 
 // ---------- items ----------
 
-export function parseSizes(text) {
-  return String(text || '')
-    .split(/[,/\n]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .filter((s, i, a) => a.indexOf(s) === i);
-}
-
 // Interest is on by default until an item is produced. An officer's explicit
 // choice (collectInterest true or false) always wins, except that denied and
 // withdrawn items never collect.
@@ -91,20 +83,15 @@ export function isCollecting(item) {
   return DEFAULT_ON.has(st);
 }
 
-// Every combination a member can put a number on. Key is "variant|size",
-// either side blank when the item has no variant or no sizes.
+// What a member can put a number on: one box, or one per variant when the
+// item has one. Key is "variant|" (blank variant for a single box).
 export function choices(item) {
   const variants = item.variant ? ['Standard', item.variant] : [''];
-  const sizes = parseSizes(item.interestSizes);
-  const sizeList = sizes.length ? sizes : [''];
-  const out = [];
-  for (const v of variants) for (const s of sizeList) out.push({ key: `${v}|${s}`, variant: v, size: s });
-  return out;
+  return variants.map((v) => ({ key: `${v}|`, variant: v }));
 }
 
 export function choiceLabel(key) {
-  const [v, s] = String(key).split('|');
-  return [v, s].filter(Boolean).join(', ') || 'Quantity';
+  return String(key).split('|')[0] || 'Quantity';
 }
 
 // What the member form gets. No vendor, notes, emails or anything officer-only.
@@ -115,7 +102,6 @@ export function publicInterestItem(item) {
     artUrl: item.artUrl || '',
     prices: priceLines(item),
     variant: item.variant || '',
-    sizes: parseSizes(item.interestSizes),
     choices: choices(item),
     note: item.interestNote || '',
   };
@@ -170,7 +156,7 @@ export function entryTotal(entry) {
 }
 
 // Per item: how many members answered, how many want at least one, total
-// pieces, and pieces per choice (in the item's own choice order).
+// pieces, and pieces per variant (in the item's own order).
 export function tally(items, responses) {
   return items.map((it) => {
     const byChoice = Object.fromEntries(choices(it).map((c) => [c.key, 0]));
@@ -200,18 +186,15 @@ const csvCell = (v) => {
 export function toCSV(items, responses, roster) {
   const byId = Object.fromEntries(roster.map((m) => [m.id, m]));
   const names = Object.fromEntries(items.map((i) => [i.id, i.name]));
-  const rows = [['Legion ID', 'Prefix', 'Name', 'Item', 'Variant', 'Size', 'Quantity', 'Answered']];
+  const rows = [['Legion ID', 'Prefix', 'Name', 'Item', 'Variant', 'Quantity', 'Answered']];
   const ids = Object.keys(responses || {}).sort((a, b) => Number(a) - Number(b));
   for (const id of ids) {
     const m = byId[id] || { id, prefix: '', name: '' };
     for (const [itemId, entry] of Object.entries(responses[id])) {
       const counts = Object.entries(entry.counts || {});
       const base = [id, m.prefix, m.name || 'Private member', names[itemId] || '(deleted item)'];
-      if (!counts.length) rows.push([...base, '', '', 0, entry.at]);
-      for (const [k, n] of counts) {
-        const [v, s] = k.split('|');
-        rows.push([...base, v, s, n, entry.at]);
-      }
+      if (!counts.length) rows.push([...base, '', 0, entry.at]);
+      for (const [k, n] of counts) rows.push([...base, k.split('|')[0], n, entry.at]);
     }
   }
   return rows.map((r) => r.map(csvCell).join(',')).join('\n') + '\n';

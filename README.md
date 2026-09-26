@@ -25,7 +25,7 @@ Tests: `npm test`
 
 ## Two pages
 
-- `/` is the member page. No password. It shows each item's art, price, status, and the Chipply link while ordering is open. Denied, withdrawn and anything unchecked on the officer form never reaches it, and officer-only fields (vendor, notes, CO email, receipts) are stripped on the server, not hidden in the browser.
+- `/` is the member page. No password. It shows each item's art, price, status, and the ordering link while ordering is open. Denied, withdrawn and anything unchecked on the officer form never reaches it, and officer-only fields (vendor, notes, CO email, receipts) are stripped on the server, not hidden in the browser.
 - `/admin` is the officer page (served from `admin.html`; `vercel.json` sets `cleanUrls` so the `.html` can be left off), behind `APP_PASSWORD`. Share that password with the GCO and anyone else who maintains items. Bookmark this one.
 
 
@@ -34,11 +34,12 @@ Each item has a "Show this item on the member page" checkbox, on by default.
 ## Member interest
 
 - Interest is on by default for every item until it's produced. Denied and withdrawn items never collect. Turn it off per item ("Ask members how many they'd buy" in the item form, or "Stop collecting"), or in bulk: tick items in the Items table and use Collect interest or Stop collecting. An explicit on or off always wins over the default.
-- Add sizes (comma separated) for apparel; leave blank for coins, patches and the like. A variant gets its own boxes automatically.
+- Members give one quantity per item, or one per variant when the item has a variant. No sizes.
+- The point is the Legion side: nothing is made until the sale runs, and the totals tell you whether an item's likely quantity is over the LFL threshold and needs LFL approval before the sale.
 - It lives on the member page. While anything is collecting, an Interest check panel sits at the top: members find themselves by name or Legion ID, which unlocks the quantity boxes on those item cards, then send once. `/interest` redirects there, and so does the officer page's Copy link. Interest items the officer hid from the member page still show up while collecting.
 - One answer per Legion ID per item, enforced on the server. Blank counts as 0, so "I'd pass" still counts as an answer. 25 per box max.
 - Add an item later and members who already answered can come back for just the new one.
-- The officer page's Member interest section shows totals by size and variant, how many members answered, and a warning when interest passes the LFL threshold. "Stop collecting" closes an item and keeps its answers. "Clear" lets a member redo an answer. "Download CSV" exports everything.
+- The officer page's Member interest section shows totals (split by variant when there is one), how many members answered, and a warning when interest passes the LFL threshold. "Stop collecting" closes an item and keeps its answers. "Clear" lets a member redo an answer. "Download CSV" exports everything.
 - The roster starts as the active list from 501st.com (in `js/roster.js`). Update it from the officer page under Roster, no redeploy needed.
 - Nobody signs in, so the form trusts members to pick their own name. Anyone with the link could answer as someone else. If that happens, clear it.
 - Answers are saved to `interest.json` in the data repo (override with `INTEREST_PATH`), separate from `merch.json`, so member submissions never collide with officer edits.
