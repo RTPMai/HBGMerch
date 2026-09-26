@@ -1,12 +1,15 @@
-import { loadData, saveData, uploadArt, getPassword, setPassword, clearPassword } from './api.js';
+import { loadData, saveData, uploadArt, getPassword, setPassword, clearPassword,
+  loadInterest, clearInterest, saveRoster, resetRoster } from './api.js';
 import * as R from './rules.js';
+import * as I from './interest.js';
 
 const app = document.getElementById('app');
 const itemDialog = document.getElementById('item-dialog');
 const settingsDialog = document.getElementById('settings-dialog');
 const importDialog = document.getElementById('import-dialog');
+const rosterDialog = document.getElementById('roster-dialog');
 
-const state = { data: null, year: null };
+const state = { data: null, year: null, interest: null, interestError: '' };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -71,6 +74,7 @@ async function boot() {
     state.data = normalize(await loadData());
     state.year ??= R.legionYearOf(R.todayISO());
     render();
+    refreshInterest();
   } catch (err) {
     if (err.status === 401) {
       clearPassword();
@@ -94,6 +98,7 @@ async function persist(mutate) {
       itemDialog.close();
       settingsDialog.close();
       importDialog.close();
+      rosterDialog.close();
       renderLogin('Signed out. Enter the password again.');
     } else if (err.status === 409 && err.data?.current) {
       state.data = normalize(err.data.current);
@@ -104,6 +109,19 @@ async function persist(mutate) {
     }
     return false;
   }
+}
+
+// Interest lives in its own file, so it loads after the tracker and a
+// failure here never blocks the rest of the page.
+async function refreshInterest() {
+  try {
+    state.interest = await loadInterest();
+    state.interestError = '';
+  } catch (err) {
+    if (err.status === 401) return;
+    state.interestError = err.message;
+  }
+  render();
 }
 
 // ---------- screens ----------
@@ -216,12 +234,14 @@ function render() {
       <h2>Needs attention</h2>
       ${flagList}
     </section>
+    ${interestSection()}
     <section>
       <h2>Items this Legion year</h2>
       ${table}
     </section>
     <footer>
       <a class="link" href="/" target="_blank" rel="noopener">View member page</a>
+      <a class="link" href="/interest" target="_blank" rel="noopener">View interest form</a>
       <button class="link" data-action="export">Download backup</button>
       <button class="link" data-action="logout">Sign out</button>
     </footer>`;
@@ -278,6 +298,15 @@ function openItem(id, prefill = null) {
         </div>
         <label class="full">Chipply store link <input name="chipplyUrl" type="url" value="${v('chipplyUrl')}" placeholder="Shown to members when ordering is open"></label>
         <label class="check full"><input type="checkbox" name="isPublic" ${it.isPublic === false ? '' : 'checked'}> Show this item on the member page</label>
+        <fieldset class="full">
+          <legend>Member interest</legend>
+          <label class="check"><input type="checkbox" name="collectInterest" ${it.collectInterest ? 'checked' : ''}> Ask members how many they'd buy</label>
+          <div class="grid tight">
+            <label>Sizes <input name="interestSizes" value="${v('interestSizes')}" placeholder="S, M, L, XL, 2XL, 3XL">
+              <span class="hint">Comma separated. Blank for one-size items like coins and patches.</span></label>
+            <label>Note to members <input name="interestNote" value="${v('interestNote')}" placeholder="Optional, like fit or colors"></label>
+          </div>
+        </fieldset>
         <label>Sale opens <input name="saleStart" type="date" value="${v('saleStart')}"></label>
         <label>Sale closes <input name="saleEnd" type="date" value="${v('saleEnd')}"></label>
         ${it.artUrl ? `<a class="art full" href="${v('artUrl')}" target="_blank" rel="noopener"><img src="${v('artUrl')}" alt="Submitted art for ${v('name')}"></a>` : ''}
@@ -314,7 +343,11 @@ function openItem(id, prefill = null) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fields = Object.fromEntries(new FormData(form));
-    const item = { ...it, ...fields, id: it.id || crypto.randomUUID(), name: fields.name.trim(), isPublic: 'isPublic' in fields };
+    const item = {
+      ...it, ...fields, id: it.id || crypto.randomUUID(), name: fields.name.trim(),
+      isPublic: 'isPublic' in fields, collectInterest: 'collectInterest' in fields,
+      interestSizes: I.parseSizes(fields.interestSizes).join(', '),
+    };
     if (item.type !== 'general') { item.setSize = ''; item.slotOwner = 'ours'; item.partners = ''; }
     const saved = await persist((d) => {
       const i = d.items.findIndex((x) => x.id === item.id);
@@ -505,6 +538,189 @@ function exportData() {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+// ---------- member interest ----------
+
+function interestSection() {
+  const items = state.data.items;
+  const inter = state.interest;
+  const responses = inter?.responses || {};
+  const answeredIds = new Set(Object.values(responses).flatMap((r) => Object.keys(r)));
+  const shown = items.filter((i) => I.isCollecting(i) || answeredIds.has(i.id));
+  const lfl = Number(state.data.settings.lflThreshold) || 0;
+
+  const head = `
+    <div class="section-head">
+      <h2>Member interest</h2>
+      <div class="top-actions">
+        <button data-action="interest-link">Copy form link</button>
+        <button data-action="roster">Roster</button>
+        <button data-action="interest-csv" ${inter && Object.keys(responses).length ? '' : 'disabled'}>Download CSV</button>
+        <button class="link" data-action="interest-refresh">Refresh</button>
+      </div>
+    </div>`;
+
+  if (state.interestError) return `<section>${head}<p class="error">${esc(state.interestError)}</p></section>`;
+  if (!inter) return `<section>${head}<p class="loading">Loading responses…</p></section>`;
+  if (!shown.length) {
+    return `<section>${head}<p class="empty">No items are collecting interest. Open an item and tick "Ask members how many they'd buy".</p></section>`;
+  }
+
+  const roster = inter.roster || [];
+  const byId = Object.fromEntries(roster.map((m) => [m.id, m]));
+  const rows = I.tally(shown, responses);
+
+  const cards = rows.map(({ item, answered, wanting, total, byChoice }) => {
+    const open = I.isCollecting(item);
+    const qty = Number(item.quantity) || 0;
+    const warn = lfl && total > lfl && item.type !== 'pr';
+    const breakdown = Object.entries(byChoice).length > 1
+      ? `<ul class="tally">${Object.entries(byChoice).map(([k, n]) => `<li><span>${esc(I.choiceLabel(k))}</span><strong>${n}</strong></li>`).join('')}</ul>`
+      : '';
+    return `<li class="interest-row">
+      <div class="interest-head">
+        <button class="row-link" data-edit="${esc(item.id)}">${esc(item.name)}</button>
+        <span class="pill ${open ? 'approved' : ''}">${open ? 'Collecting' : 'Closed'}</span>
+        <button class="step" data-interest-toggle="${esc(item.id)}">${open ? 'Stop collecting' : 'Reopen'}</button>
+      </div>
+      <p class="interest-nums">
+        <span><strong>${total}</strong> pieces</span>
+        <span><strong>${wanting}</strong> of ${answered} answered want one</span>
+        <span class="muted">${answered} of ${roster.length} members answered</span>
+        ${qty ? `<span class="muted">Planned quantity ${qty}</span>` : ''}
+      </p>
+      ${warn ? `<p class="flag warn interest-warn"><span class="flag-body">Interest is over the LFL threshold of ${lfl}.</span></p>` : ''}
+      ${breakdown}
+    </li>`;
+  }).join('');
+
+  const members = Object.keys(responses).sort((a, b) => {
+    const na = byId[a]?.name || '~';
+    const nb = byId[b]?.name || '~';
+    return na.localeCompare(nb) || Number(a) - Number(b);
+  });
+  const names = Object.fromEntries(items.map((i) => [i.id, i.name]));
+  const people = members.length
+    ? `<details class="responses">
+        <summary>Who answered (${members.length})</summary>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Member</th><th>Answers</th><th></th></tr></thead>
+          <tbody>${members.map((id) => {
+            const entries = Object.entries(responses[id]);
+            return `<tr>
+              <td>${esc(I.memberLabel(byId[id] || { id, prefix: '', name: '' }))}</td>
+              <td>${entries.map(([itemId, e]) => {
+                const counts = Object.entries(e.counts || {});
+                const detail = counts.length > 1 || (counts[0] && counts[0][0] !== '|')
+                  ? ` (${counts.map(([k, n]) => `${esc(I.choiceLabel(k))} ${n}`).join(', ')})` : '';
+                return `<small>${esc(names[itemId] || 'Deleted item')}: <strong>${I.entryTotal(e)}</strong>${detail}
+                  <button class="link" data-clear-member="${esc(id)}" data-clear-item="${esc(itemId)}" title="Let them answer this item again">Clear</button></small>`;
+              }).join('')}</td>
+              <td class="num"><button class="link" data-clear-member="${esc(id)}">Clear all</button></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>
+      </details>`
+    : '<p class="empty">No answers yet. Share the form link with the garrison.</p>';
+
+  return `<section>${head}<ul class="interest-list">${cards}</ul>${people}</section>`;
+}
+
+async function toggleInterest(id, button) {
+  const it = state.data.items.find((i) => i.id === id);
+  if (!it) return;
+  button.disabled = true;
+  const on = !I.isCollecting(it);
+  if (await persist((d) => { const t = d.items.find((i) => i.id === id); if (t) t.collectInterest = on; })) {
+    toast(on ? `Collecting interest on ${it.name} again.` : `Stopped collecting interest on ${it.name}. Answers so far are kept.`);
+  } else {
+    button.disabled = false;
+  }
+}
+
+async function clearMember(member, item, button) {
+  const who = I.memberLabel((state.interest?.roster || []).find((m) => m.id === member) || { id: member, prefix: '', name: '' });
+  const what = item ? `their answer on ${state.data.items.find((i) => i.id === item)?.name || 'this item'}` : 'all their answers';
+  if (!confirm(`Clear ${what} for ${who}? They'll be able to answer again.`)) return;
+  button.disabled = true;
+  try {
+    state.interest = await clearInterest(member, item);
+    render();
+    toast(`Cleared. ${who} can answer again.`);
+  } catch (err) {
+    button.disabled = false;
+    toast(err.message);
+  }
+}
+
+function exportInterest() {
+  if (!state.interest) return;
+  const csv = I.toCSV(state.data.items, state.interest.responses, state.interest.roster || []);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `merch-interest-${R.todayISO()}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function copyInterestLink() {
+  const url = `${location.origin}/interest`;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Form link copied.');
+  } catch {
+    prompt('Copy the form link:', url);
+  }
+}
+
+function openRoster() {
+  const inter = state.interest;
+  if (!inter) return toast('Responses are still loading.');
+  rosterDialog.innerHTML = `
+    <form id="roster-form">
+      <h2>Interest roster</h2>
+      <p class="hint">Who can answer the form. One member per line: prefix, Legion ID, name. Leave the name off for members who keep it private.
+        ${inter.customRoster ? 'This is an edited copy.' : 'This is the list pulled from 501st.com.'}</p>
+      <label class="full">Members (${(inter.roster || []).length})
+        <textarea name="rosterText" rows="16" spellcheck="false">${esc(I.rosterToText(inter.roster || []))}</textarea></label>
+      <p class="error" id="roster-error" hidden></p>
+      <div class="form-actions">
+        ${inter.customRoster ? '<button type="button" data-action="roster-reset">Back to default list</button>' : '<span></span>'}
+        <div>
+          <button type="button" data-action="close-dialog">Cancel</button>
+          <button type="submit" class="primary">Save roster</button>
+        </div>
+      </div>
+    </form>`;
+
+  const form = rosterDialog.querySelector('form');
+  const fail = (msg) => { const el = form.querySelector('#roster-error'); el.textContent = msg; el.hidden = false; };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = new FormData(form).get('rosterText');
+    const count = I.parseRoster(text).length;
+    if (!count) return fail('No members found. Use one per line, like "TK 5107 Jason L Schuett".');
+    try {
+      state.interest = await saveRoster(text);
+      rosterDialog.close();
+      render();
+      toast(`Saved roster, ${count} members.`);
+    } catch (err) { fail(err.message); }
+  });
+
+  form.querySelector('[data-action="roster-reset"]')?.addEventListener('click', async () => {
+    if (!confirm('Go back to the default roster from 501st.com? Your edits are dropped.')) return;
+    try {
+      state.interest = await resetRoster();
+      rosterDialog.close();
+      render();
+      toast('Roster reset.');
+    } catch (err) { fail(err.message); }
+  });
+
+  rosterDialog.showModal();
+}
+
 // ---------- events ----------
 
 document.addEventListener('click', (e) => {
@@ -514,14 +730,24 @@ document.addEventListener('click', (e) => {
   const edit = e.target.closest('[data-edit]');
   if (edit) return openItem(edit.dataset.edit);
 
+  const toggle = e.target.closest('[data-interest-toggle]');
+  if (toggle) return toggleInterest(toggle.dataset.interestToggle, toggle);
+
+  const clr = e.target.closest('[data-clear-member]');
+  if (clr) return clearMember(clr.dataset.clearMember, clr.dataset.clearItem || '', clr);
+
   const action = e.target.closest('[data-action]')?.dataset.action;
   if (action === 'add') openItem(null);
+  else if (action === 'interest-csv') exportInterest();
+  else if (action === 'interest-link') copyInterestLink();
+  else if (action === 'roster') openRoster();
+  else if (action === 'interest-refresh') { state.interest = null; render(); refreshInterest(); }
   else if (action === 'settings') openSettings();
   else if (action === 'import') openImport();
   else if (action === 'export') exportData();
   else if (action === 'retry') boot();
   else if (action === 'close-dialog') e.target.closest('dialog')?.close();
-  else if (action === 'logout') { clearPassword(); state.data = null; renderLogin(); }
+  else if (action === 'logout') { clearPassword(); state.data = null; state.interest = null; renderLogin(); }
 });
 
 app.addEventListener('change', (e) => {

@@ -60,11 +60,14 @@ async function load() {
   try {
     const res = await fetch('/api/public');
     if (!res.ok) throw new Error(`Couldn't load the merch list (${res.status}).`);
-    const { unitName, items } = await res.json();
+    const { unitName, items, interestOpen } = await res.json();
     const today = R.todayISO();
     const sorted = [...items].sort(R.publicOrder);
 
     app.innerHTML = `${header(unitName)}
+      ${interestOpen ? `<a class="interest-cta" href="/interest">
+        <span><strong>New designs in the works.</strong> Tell us how many you'd likely buy. Not an order.</span>
+        <span class="interest-cta-go">Give interest</span></a>` : ''}
       ${sorted.length
         ? `<ul class="cards">${sorted.map((i) => card(i, today)).join('')}</ul>`
         : '<p class="empty">Nothing posted right now. Check back after the next approval.</p>'}

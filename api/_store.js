@@ -43,9 +43,15 @@ export async function read(cfg) {
   return { data: text.trim() ? JSON.parse(text) : { ...EMPTY }, sha: file.sha };
 }
 
-export async function write(cfg, data, sha) {
+// Same repo and token, different file. Used for interest.json so member
+// responses never collide with officer saves to merch.json.
+export function interestConfig() {
+  return { ...config(), path: process.env.INTEREST_PATH || 'interest.json' };
+}
+
+export async function write(cfg, data, sha, message) {
   const res = await gh(cfg, 'PUT', contentsUrl(cfg), {
-    message: `Update merch data (v${data.version})`,
+    message: message || `Update merch data (v${data.version})`,
     content: Buffer.from(JSON.stringify(data, null, 2) + '\n', 'utf8').toString('base64'),
     branch: cfg.branch,
     ...(sha ? { sha } : {}),

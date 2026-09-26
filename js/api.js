@@ -33,6 +33,28 @@ async function call(method, body) {
 export const loadData = () => call('GET');
 export const saveData = (data) => call('PUT', data);
 
+async function interestCall(method, query = '', body) {
+  const res = await fetch(`/api/interest${query}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'x-app-password': getPassword() || '' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(json.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
+  return json;
+}
+
+export const loadInterest = () => interestCall('GET', '?view=admin');
+export const clearInterest = (member, item = '') => interestCall(
+  'DELETE', `?member=${encodeURIComponent(member)}${item ? `&item=${encodeURIComponent(item)}` : ''}`,
+);
+export const saveRoster = (rosterText) => interestCall('PUT', '', { rosterText });
+export const resetRoster = () => interestCall('PUT', '', { reset: true });
+
 export async function uploadArt({ name, type, data }) {
   const res = await fetch('/api/upload', {
     method: 'POST',

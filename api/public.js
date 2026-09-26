@@ -3,6 +3,7 @@
 
 import { config, read } from './_store.js';
 import { publicItem } from '../js/rules.js';
+import { isCollecting } from '../js/interest.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -13,7 +14,8 @@ export default async function handler(req, res) {
     const { data } = await read(config());
     const items = (data.items || []).map(publicItem).filter(Boolean);
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-    return res.status(200).json({ unitName: data.settings?.unitName || 'Hawkbat Garrison', items });
+    const interestOpen = (data.items || []).some(isCollecting);
+    return res.status(200).json({ unitName: data.settings?.unitName || 'Hawkbat Garrison', items, interestOpen });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

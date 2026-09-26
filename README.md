@@ -23,12 +23,25 @@ Local dev: `vercel dev` (after `vercel link` and `vercel env pull`).
 
 Tests: `npm test`
 
-## Two pages
+## Three pages
 
 - `/` is the member page. No password. It shows each item's art, price, status, and the Chipply link while ordering is open. Denied, withdrawn and anything unchecked on the officer form never reaches it, and officer-only fields (vendor, notes, CO email, receipts) are stripped on the server, not hidden in the browser.
 - `/admin` is the officer page (served from `admin.html`; `vercel.json` sets `cleanUrls` so the `.html` can be left off), behind `APP_PASSWORD`. Share that password with the GCO and anyone else who maintains items. Bookmark this one.
 
+- `/interest` is the member interest form. No password. Members find themselves on the roster by name or Legion ID, put a number on each open item (per size, per variant), and send once. It's a gauge for the upper limit, not an order.
+
 Each item has a "Show this item on the member page" checkbox, on by default.
+
+## Member interest
+
+- Open an item and tick "Ask members how many they'd buy". Add sizes (comma separated) for apparel; leave blank for coins, patches and the like. A variant gets its own boxes automatically.
+- The member page shows a "Give interest" banner while anything is collecting.
+- One answer per Legion ID per item, enforced on the server. Blank counts as 0, so "I'd pass" still counts as an answer. 25 per box max.
+- Add an item later and members who already answered can come back for just the new one.
+- The officer page's Member interest section shows totals by size and variant, how many members answered, and a warning when interest passes the LFL threshold. "Stop collecting" closes an item and keeps its answers. "Clear" lets a member redo an answer. "Download CSV" exports everything.
+- The roster starts as the active list from 501st.com (in `js/roster.js`). Update it from the officer page under Roster, no redeploy needed.
+- Nobody signs in, so the form trusts members to pick their own name. Anyone with the link could answer as someone else. If that happens, clear it.
+- Answers are saved to `interest.json` in the data repo (override with `INTEREST_PATH`), separate from `merch.json`, so member submissions never collide with officer edits.
 
 ## Files
 
@@ -36,12 +49,16 @@ Each item has a "Show this item on the member page" checkbox, on by default.
 - `js/api.js` every fetch goes through here.
 - `js/app.js` officer UI.
 - `js/public.js` member page.
+- `js/interest.js` interest rules: roster parsing and search, one-answer checks, totals, CSV. Pure functions, tested.
+- `js/interest-page.js` interest form.
+- `js/roster.js` default garrison roster.
 - `api/_store.js` GitHub read and write helpers, shared by both endpoints.
 - `api/public.js` read-only, stripped-down feed for the member page.
 - `api/upload.js` commits uploaded art to `art/` in the data repo. Password protected, 4 MB cap.
 - `api/art.js` serves those files back at `/api/art?f=<name>`, so the data repo stays private.
+- `api/interest.js` interest form feed and submissions (no password), plus officer results, clearing and roster edits (password).
 - `api/data.js` GET and PUT for the dataset, stored as one JSON file in the data repo. Saves are versioned so two tabs can't overwrite each other.
-- `tests/rules.test.js`
+- `tests/rules.test.js`, `tests/interest.test.js`
 
 ## How the rules are applied
 
