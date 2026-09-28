@@ -184,11 +184,22 @@ test('public view hides private, denied and internal fields', () => {
 });
 
 test('public status follows the sale window', () => {
-  const base = { coApproved: '2026-08-01', submitted: '2026-08-02', approved: '2026-08-10', saleStart: '2026-09-18', saleEnd: '2026-12-31' };
+  const base = { coApproved: '2026-08-01', submitted: '2026-08-02', approved: '2026-08-10', saleStart: '2026-09-18', saleEnd: '2026-12-31', chipplyUrl: 'https://store' };
   assert.equal(R.publicStatus(base, '2026-09-01').label, 'Ordering opens soon');
   assert.equal(R.publicStatus(base, '2026-10-01').label, 'Ordering open');
   assert.equal(R.publicStatus(base, '2027-01-05').label, 'Ordering closed');
   assert.equal(R.publicStatus({ ...base, produced: '2027-01-10' }, '2027-01-12').label, 'In production');
   assert.equal(R.publicStatus({ ...base, produced: '2027-01-10', receiptSent: '2027-01-11' }, '2027-01-12').label, 'Complete');
   assert.equal(R.publicStatus({ created: '2026-09-01' }, '2026-09-05').label, 'In the works');
+});
+
+test('approved with no ordering link says Approved, not open', () => {
+  const item = { approved: '2026-09-28' };
+  const s = R.publicStatus(item, '2026-09-28');
+  assert.equal(s.label, 'Approved');
+  assert.equal(s.note, 'Ordering link coming soon.');
+  assert.equal(R.publicStatus({ ...item, chipplyUrl: '  ' }, '2026-09-28').label, 'Approved');
+  assert.equal(R.publicStatus({ ...item, saleStart: '2026-10-05' }, '2026-09-28').note, 'Ordering opens Oct 5, 2026.');
+  assert.equal(R.publicStatus({ ...item, saleEnd: '2026-09-01' }, '2026-09-28').label, 'Ordering closed');
+  assert.equal(R.publicStatus({ ...item, chipplyUrl: 'https://store' }, '2026-09-28').label, 'Ordering open');
 });

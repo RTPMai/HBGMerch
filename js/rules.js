@@ -353,8 +353,12 @@ export function publicStatus(item, todayIso = todayISO()) {
     return { rank: 4, tone: 'plain', label: 'Waiting on Legion approval', note: 'Submitted to the LMBO.' };
   }
   if (st === 'approved') {
-    if (start && today < start) return { rank: 2, tone: 'soon', label: 'Ordering opens soon', note: `Opens ${formatDate(start)}.` };
     if (end && today > end) return { rank: 3, tone: 'plain', label: 'Ordering closed', note: 'Going into production.' };
+    // Approved but no ordering link yet: say so, don't claim it's open.
+    if (!String(item.chipplyUrl || '').trim()) {
+      return { rank: 2, tone: 'soon', label: 'Approved', note: start && today < start ? `Ordering opens ${formatDate(start)}.` : 'Ordering link coming soon.' };
+    }
+    if (start && today < start) return { rank: 2, tone: 'soon', label: 'Ordering opens soon', note: `Opens ${formatDate(start)}.` };
     return { rank: 1, tone: 'open', label: 'Ordering open', note: end ? `Closes ${formatDate(end)}.` : 'Approved and available.' };
   }
   if (st === 'produced') return { rank: 3, tone: 'plain', label: 'In production', note: 'Watch for pickup or shipping details.' };
